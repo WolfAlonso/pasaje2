@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedidos · Admin</title>
+  <meta name="theme-color" content="#1e3a8a">
+  <link rel="manifest" href="../manifest.json">
+  <link rel="icon" href="../img/favicon.ico">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase.js"></script>
+  <script src="../js/theme-loader.js?v=4"></script>
+  <script src="../js/admin-utils.js?v=6"></script>
+  <script src="../js/admin-sidebar.js?v=2"></script>
+  <script src="../js/liquid-glass.js?v=2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .chip { white-space: nowrap; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; transition: all .15s; cursor: pointer; border: 0; }
+    .chip-active { background: #1e3a8a; color: white; }
+    .chip-idle { background: white; color: #374151; border: 1px solid #d1d5db; }
+    .chip-idle:hover { background: #f3f4f6; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <div id="adminHeader"></div>
+
+  <main class="max-w-7xl mx-auto p-4">
+    <div id="adminTabs"></div>
+
+    <div id="loadingState" class="bg-white rounded-xl shadow-sm border p-8 text-center text-sm text-gray-500">Cargando pedidos...</div>
+
+    <section id="content" class="hidden space-y-4">
+
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</p>
+          <p id="statTotal" class="text-2xl font-extrabold text-gray-800 mt-1">—</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+          <p class="text-xs font-semibold text-amber-700 uppercase tracking-wider">⏳ Nuevos</p>
+          <p id="statSent" class="text-2xl font-extrabold text-amber-600 mt-1">—</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+          <p class="text-xs font-semibold text-blue-700 uppercase tracking-wider">💬 Contactados</p>
+          <p id="statContacted" class="text-2xl font-extrabold text-blue-600 mt-1">—</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+          <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">✅ Completados</p>
+          <p id="statCompleted" class="text-2xl font-extrabold text-emerald-600 mt-1">—</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+          <p class="text-xs font-semibold text-gray-700 uppercase tracking-wider">💰 Ingresos</p>
+          <p id="statRevenue" class="text-2xl font-extrabold text-gray-800 mt-1">—</p>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border p-4 space-y-3">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input id="orderSearch" type="text" placeholder="Buscar por cliente, teléfono o tienda..."
+            class="flex-1 border border-gray-300 p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none bg-white">
+          <select id="orderStoreFilter"
+            class="border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-500 outline-none">
+            <option value="">Todas las tiendas</option>
+          </select>
+        </div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar" id="orderFilterChips">
+          <button data-order-filter="sent"      class="chip chip-idle">⏳ Nuevos</button>
+          <button data-order-filter="contacted" class="chip chip-idle">💬 Contactados</button>
+          <button data-order-filter="completed" class="chip chip-idle">✅ Completados</button>
+          <button data-order-filter="cancelled" class="chip chip-idle">🗑️ Cancelados</button>
+          <button data-order-filter="all"       class="chip chip-active">📋 Todos</button>
+        </div>
+      </div>
+
+      <div id="ordersList" class="bg-white rounded-xl shadow-sm border overflow-hidden divide-y">
+        <p class="p-8 text-center text-sm text-gray-500">Cargando pedidos...</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: detalle de pedido -->
+  <div id="orderModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
+      <div id="orderModalContent" class="p-6"></div>
+    </div>
+  </div>
+
+  <script>
+    let allOrders = [];
+    let allStores = [];
+    let currentFilter = 'all';
+    const modal = document.getElementById('orderModal');
+
+    (async () => {
+      const session = await adminGuardPage();
+      if (!session) return;
+      await initAdminNav({ user: session.user });
+
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+
+      await loadStores();
+      await loadOrders();
+
+      document.getElementById('orderSearch').addEventListener('input', renderOrders);
+      document.getElementById('orderStoreFilter').addEventListener('change', renderOrders);
+
+      document.getElementById('orderFilterChips').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-order-filter]');
+        if (!btn) return;
+        document.querySelectorAll('#orderFilterChips .chip').forEach(b => {
+          b.classList.remove('chip-active');
+          b.classList.add('chip-idle');
+        });
+        btn.classList.remove('chip-idle');
+        btn.classList.add('chip-active');
+        currentFilter = btn.dataset.orderFilter;
+        renderOrders();
+      });
+    })();
+
+    async function loadStores() {
+      const { data } = await _supabase.from('stores').select('id, name, slug').order('name');
+      allStores = data || [];
+      const sel = document.getElementById('orderStoreFilter');
+      sel.innerHTML = '<option value="">Todas las tiendas</option>' +
+        allStores.map(s => `<option value="${s.id}">${adminEscapeHtml(s.name)}</option>`).join('');
+    }
+
+    async function loadOrders() {
+      const container = document.getElementById('ordersList');
+      container.innerHTML = '<p class="p-8 text-center text-sm text-gray-500">Cargando pedidos...</p>';
+
+      const { data, error } = await _supabase
+        .from('cart_orders')
+        .select(`
+          id, store_id, customer_name, customer_phone, customer_address,
+          notes, items, total, item_count, source_page, status, created_at,
+          stores ( id, name, slug, whatsapp, logo_url )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        container.innerHTML = '<p class="p-8 text-center text-sm text-red-500">Error al cargar pedidos.</p>';
+        console.error(error);
+        return;
+      }
+
+      allOrders = data || [];
+      updateStats();
+      renderOrders();
+    }
+
+    function updateStats() {
+      const total = allOrders.length;
+      const sent = allOrders.filter(o => o.status === 'sent').length;
+      const contacted = allOrders.filter(o => o.status === 'contacted').length;
+      const completed = allOrders.filter(o => o.status === 'completed').length;
+      const revenue = allOrders
+        .filter(o => o.status === 'completed')
+        .reduce((acc, o) => acc + parseFloat(o.total || 0), 0);
+
+      document.getElementById('statTotal').textContent     = total;
+      document.getElementById('statSent').textContent      = sent;
+      document.getElementById('statContacted').textContent = contacted;
+      document.getElementById('statCompleted').textContent = completed;
+      document.getElementById('statRevenue').textContent   = 'Q ' + revenue.toFixed(2);
+    }
+
+    function getStatusBadge(status) {
+      const map = {
+        sent:      { label: '⏳ Nuevo',       cls: 'bg-amber-100 text-amber-800' },
+        contacted: { label: '💬 Contactado',  cls: 'bg-blue-100 text-blue-700' },
+        completed: { label: '✅ Completado',  cls: 'bg-emerald-100 text-emerald-700' },
+        cancelled: { label: '🗑️ Cancelado',  cls: 'bg-gray-200 text-gray-700' },
+      };
+      return map[status] || { label: status, cls: 'bg-gray-100 text-gray-600' };
+    }
+
+    function renderOrders() {
+      const container = document.getElementById('ordersList');
+      const e = adminEscapeHtml;
+      const term = document.getElementById('orderSearch').value.toLowerCase().trim();
+      const storeFilter = document.getElementById('orderStoreFilter').value;
+
+      let list = allOrders;
+      if (currentFilter !== 'all') list = list.filter(o => o.status === currentFilter);
+      if (storeFilter) list = list.filter(o => String(o.store_id) === storeFilter);
+      if (term) {
+        list = list.filter(o => {
+          const hay = [
+            o.customer_name, o.customer_phone, o.stores?.name, o.customer_address, o.notes
+          ].filter(Boolean).join(' ').toLowerCase();
+          return hay.includes(term);
+        });
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="p-10 text-center">
+            <div class="text-4xl mb-2">🛒</div>
+            <p class="text-sm text-gray-500">No hay pedidos en esta vista.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(o => {
+        const st = getStatusBadge(o.status);
+        const store = o.stores;
+        const items = Array.isArray(o.items) ? o.items : [];
+        const preview = items.slice(0, 3).map(it => `${it.quantity}× ${e(it.title)}`).join(' · ');
+        const more = items.length > 3 ? ` · +${items.length - 3} más` : '';
+
+        return `
+          <div class="p-4 hover:bg-gray-50 cursor-pointer transition" data-order-open="${o.id}">
+            <div class="flex items-start gap-3 flex-wrap">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500 text-white flex items-center justify-center font-bold text-lg flex-shrink-0">
+                ${(o.customer_name || 'C').charAt(0).toUpperCase()}
+              </div>
+
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-[10px] ${st.cls} font-bold px-2 py-0.5 rounded-full">${st.label}</span>
+                  <h3 class="font-bold text-gray-800 truncate">
+                    ${o.customer_name ? e(o.customer_name) : '<span class="italic text-gray-400">Cliente anónimo</span>'}
+                  </h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 mt-1 text-xs text-gray-600">
+                  <p class="truncate">📱 ${e(o.customer_phone || '—')}</p>
+                  <p class="truncate">🏪 ${store ? e(store.name) : 'Tienda eliminada'}</p>
+                  <p class="col-span-full truncate">📦 ${e(preview)}${more}</p>
+                </div>
+              </div>
+
+              <div class="text-right flex-shrink-0">
+                <p class="text-base font-extrabold text-emerald-600">Q ${parseFloat(o.total).toFixed(2)}</p>
+                <p class="text-[10px] text-gray-400 mt-0.5">${adminFormatDate(o.created_at)}</p>
+                <p class="text-[10px] text-blue-700 font-semibold mt-1">Ver detalle →</p>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      container.querySelectorAll('[data-order-open]').forEach(el => {
+        el.addEventListener('click', () => openOrderModal(el.dataset.orderOpen));
+      });
+    }
+
+    // =========================================================
+    // Modal detalle
+    // =========================================================
+    function openOrderModal(orderId) {
+      const o = allOrders.find(x => String(x.id) === String(orderId));
+      if (!o) return;
+      const e = adminEscapeHtml;
+      const store = o.stores;
+      const items = Array.isArray(o.items) ? o.items : [];
+      const st = getStatusBadge(o.status);
+      const waClient = o.customer_phone
+        ? `https://wa.me/${String(o.customer_phone).replace(/\D/g, '')}`
+        : null;
+
+      document.getElementById('orderModalContent').innerHTML = `
+        <div class="flex items-start justify-between mb-4">
+          <div class="min-w-0">
+            <h3 class="text-lg font-extrabold text-gray-800">Pedido #${e(String(o.id).slice(0, 8))}</h3>
+            <p class="text-xs text-gray-500 mt-0.5">${adminFormatDate(o.created_at)}</p>
+          </div>
+          <button id="closeOrderModalBtn"
+            class="bg-gray-100 hover:bg-gray-200 text-gray-700 w-9 h-9 rounded-lg flex items-center justify-center transition flex-shrink-0">✕</button>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap mb-4">
+          <span class="text-[11px] ${st.cls} font-bold px-3 py-1 rounded-full">${st.label}</span>
+          ${store ? `
+            <a href="../tienda.html?slug=${encodeURIComponent(store.slug)}" target="_blank"
+               class="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-3 py-1 rounded-full">
+              🏪 ${e(store.name)}
+            </a>` : ''}
+          <span class="text-[11px] text-gray-500">Origen: ${e(o.source_page || '—')}</span>
+        </div>
+
+        <div class="bg-gray-50 border rounded-lg p-4 mb-4">
+          <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">👤 Cliente</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <p><span class="text-gray-500">Nombre:</span> <strong>${o.customer_name ? e(o.customer_name) : '—'}</strong></p>
+            <p><span class="text-gray-500">Teléfono:</span> <strong>${e(o.customer_phone || '—')}</strong></p>
+            <p class="col-span-full"><span class="text-gray-500">Dirección:</span> ${e(o.customer_address || '—')}</p>
+            ${o.notes ? `<p class="col-span-full"><span class="text-gray-500">Notas:</span> <span class="italic">${e(o.notes)}</span></p>` : ''}
+          </div>
+          ${waClient ? `
+            <a href="${waClient}" target="_blank" rel="noopener"
+               class="mt-3 w-full inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-2.5 rounded-lg transition text-sm">
+              📲 Escribir al cliente por WhatsApp
+            </a>` : ''}
+        </div>
+
+        <div class="border rounded-lg overflow-hidden mb-4">
+          <div class="bg-gray-50 px-4 py-2 border-b">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">🛒 Productos (${o.item_count})</p>
+          </div>
+          <div class="divide-y">
+            ${items.map(it => `
+              <div class="p-3 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                  ${it.quantity}×
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-gray-800 truncate">${e(it.title)}</p>
+                  <p class="text-[11px] text-gray-500">Q ${parseFloat(it.price).toFixed(2)} c/u</p>
+                </div>
+                <span class="text-sm font-extrabold text-emerald-600 flex-shrink-0">
+                  Q ${parseFloat(it.subtotal || (it.price * it.quantity)).toFixed(2)}
+                </span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="bg-emerald-50 px-4 py-3 border-t flex justify-between items-center">
+            <span class="text-sm font-bold text-emerald-800">Total</span>
+            <span class="text-xl font-extrabold text-emerald-700">Q ${parseFloat(o.total).toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="border-t pt-4">
+          <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Cambiar estado</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button data-set-status="sent" class="text-xs font-semibold px-3 py-2 rounded-lg transition ${o.status === 'sent' ? 'bg-amber-500 text-white' : 'bg-amber-50 hover:bg-amber-100 text-amber-700'}">⏳ Nuevo</button>
+            <button data-set-status="contacted" class="text-xs font-semibold px-3 py-2 rounded-lg transition ${o.status === 'contacted' ? 'bg-blue-500 text-white' : 'bg-blue-50 hover:bg-blue-100 text-blue-700'}">💬 Contactado</button>
+            <button data-set-status="completed" class="text-xs font-semibold px-3 py-2 rounded-lg transition ${o.status === 'completed' ? 'bg-emerald-500 text-white' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'}">✅ Completado</button>
+            <button data-set-status="cancelled" class="text-xs font-semibold px-3 py-2 rounded-lg transition ${o.status === 'cancelled' ? 'bg-gray-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}">🗑️ Cancelado</button>
+          </div>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      const closeFn = () => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        document.getElementById('orderModalContent').innerHTML = '';
+      };
+
+      document.getElementById('closeOrderModalBtn').addEventListener('click', closeFn);
+      modal.addEventListener('click', (ev) => { if (ev.target === modal) closeFn(); }, { once: true });
+
+      document.querySelectorAll('[data-set-status]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const newStatus = btn.dataset.setStatus;
+          if (newStatus === o.status) return;
+          btn.disabled = true;
+
+          const { error } = await _supabase
+            .from('cart_orders')
+            .update({ status: newStatus })
+            .eq('id', o.id);
+
+          if (error) {
+            console.error(error);
+            alert('Error: ' + error.message);
+            btn.disabled = false;
+            return;
+          }
+
+          o.status = newStatus;
+          updateStats();
+          renderOrders();
+          closeFn();
+        });
+      });
+    }
+
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && !modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        document.getElementById('orderModalContent').innerHTML = '';
+      }
+    });
+  </script>
+</body>
+</html>

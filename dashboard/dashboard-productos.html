@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e3a8a">
+  <link rel="manifest" href="../manifest.json">
+  <link rel="icon" href="../img/favicon.ico">
+  <title>Productos · Pasaje de los Altos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase.js?v=4"></script>
+  <script src="../js/theme-loader.js?v=4"></script>
+  <script src="../js/dashboard-utils.js?v=4"></script>
+  <script src="../js/dashboard-sidebar.js?v=5"></script>
+  <script src="../js/liquid-glass.js?v=4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <div id="dashboardHeader"></div>
+
+  <main class="max-w-6xl mx-auto p-4 pb-16">
+    <div id="dashboardTabs"></div>
+
+    <div id="loadingState" class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/80 p-8 text-center text-sm text-slate-500 shadow-sm">
+      Cargando productos...
+    </div>
+
+    <section id="content" class="hidden grid lg:grid-cols-5 gap-6">
+
+      <!-- Formulario de Producto -->
+      <div class="lg:col-span-2 space-y-4">
+        
+        <!-- Banner de estado de Plan y Límites -->
+        <div id="planBannerContainer"></div>
+
+        <div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/80 shadow-sm p-5 lg:sticky lg:top-20">
+          <h2 id="formTitle" class="text-lg font-extrabold text-slate-900 mb-4">Publicar nuevo producto</h2>
+
+          <form id="productForm" class="space-y-3">
+            <input type="hidden" id="productId">
+
+            <!-- FOTO PRINCIPAL -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Foto principal del producto *</label>
+              <div id="imgDrop"
+                class="border-2 border-dashed border-slate-300 rounded-xl p-3 text-center cursor-pointer hover:bg-slate-50 transition bg-white/60">
+                <input type="file" id="imgFile" accept="image/*" class="hidden">
+                <div id="imgPreview" class="hidden relative">
+                  <img id="imgPreviewSrc" class="mx-auto max-h-48 rounded-lg object-cover shadow-sm" alt="preview">
+                  <button type="button" id="imgRemove"
+                    class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold w-7 h-7 rounded-full shadow-lg hover:bg-red-600 transition flex items-center justify-center">✕</button>
+                </div>
+                <div id="imgPlaceholder">
+                  <div class="text-3xl mb-1">🖼️</div>
+                  <p class="text-xs text-slate-600 font-bold">Toca para subir foto principal</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">JPG, PNG o WEBP · máx 5 MB</p>
+                </div>
+              </div>
+              <details class="mt-2">
+                <summary class="text-xs text-slate-500 cursor-pointer hover:text-blue-700 font-semibold">o pega una URL de imagen</summary>
+                <input type="url" id="imageUrl" placeholder="https://..."
+                  class="w-full border border-slate-200 p-2 rounded-xl mt-1 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+              </details>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Categoría *</label>
+              <select id="category" required
+                class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white font-semibold focus:ring-2 focus:ring-emerald-500 outline-none">
+                <option value="">Cargando...</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del producto *</label>
+              <input type="text" id="title" required placeholder="Ej. Chocoflan Familiar"
+                class="w-full border border-slate-200 p-2.5 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-semibold bg-white">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Descripción (opcional)</label>
+              <textarea id="description" rows="2" placeholder="Detalles, tamaño, ingredientes..."
+                class="w-full border border-slate-200 p-2.5 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white"></textarea>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Precio Base (Q) *</label>
+              <input type="number" step="0.01" min="0" id="price" required placeholder="45.00"
+                class="w-full border border-slate-200 p-2.5 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-extrabold text-slate-900 bg-white">
+            </div>
+
+            <!-- OFERTA RELÁMPAGO -->
+            <div class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 space-y-3">
+              <label class="inline-flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="isOnSale" class="w-4 h-4 accent-rose-600 rounded">
+                <span class="text-xs font-black text-rose-900 uppercase">🔥 Poner en Oferta Relámpago</span>
+              </label>
+
+              <div id="saleFieldsContainer" class="hidden space-y-2 pt-1">
+                <div>
+                  <label class="block text-[10px] font-bold text-rose-800 uppercase mb-1">Precio Original (Antes)</label>
+                  <input type="number" step="0.01" min="0" id="originalPrice" placeholder="Ej. 60.00"
+                    class="w-full border border-rose-200 p-2 rounded-xl text-xs bg-white outline-none">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-rose-800 uppercase mb-1">Fecha y Hora Límite</label>
+                  <input type="datetime-local" id="saleExpiresAt"
+                    class="w-full border border-rose-200 p-2 rounded-xl text-xs bg-white outline-none font-semibold">
+                </div>
+              </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+              <button type="submit" id="saveBtn"
+                class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition text-xs shadow-sm">
+                Publicar
+              </button>
+              <button type="button" id="cancelBtn"
+                class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs transition">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Lista de Productos -->
+      <div class="lg:col-span-3 space-y-3">
+        <div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/80 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-extrabold text-slate-900">Mis productos</h2>
+            <span id="countBadge" class="text-xs bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full font-extrabold">0</span>
+          </div>
+          <input type="text" id="productSearch" placeholder="Buscar producto..."
+            class="w-full sm:w-56 border border-slate-200 px-3 py-1.5 rounded-xl text-xs bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+
+        <div id="myProducts" class="space-y-3"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let currentUser = null;
+    let currentStore = null;
+    let myProductsList = [];
+    let pendingProductFile = null;
+    let currentProductImageUrl = null;
+    let productImgUI = null;
+    let productSearchTerm = '';
+
+    const PLAN_LIMITS = { free: 10, pro: 50, advanced: Infinity };
+    const PLAN_NAMES  = { free: 'Gratis', pro: 'Pro', advanced: 'Advanced' };
+
+    const form = document.getElementById('productForm');
+    const productIdEl = document.getElementById('productId');
+    const formTitle = document.getElementById('formTitle');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const isOnSaleCheck = document.getElementById('isOnSale');
+    const saleFieldsContainer = document.getElementById('saleFieldsContainer');
+
+    isOnSaleCheck?.addEventListener('change', () => {
+      if (isOnSaleCheck.checked) saleFieldsContainer.classList.remove('hidden');
+      else saleFieldsContainer.classList.add('hidden');
+    });
+
+    function checkPlanLimits() {
+      if (!currentStore) return;
+      let rawPlan = String(currentStore.plan_type || 'free').trim().toLowerCase();
+      const expiresAt = currentStore.plan_expires_at ? new Date(currentStore.plan_expires_at) : null;
+      if (expiresAt && expiresAt < new Date()) rawPlan = 'free';
+
+      const maxLimit = PLAN_LIMITS[rawPlan] || 10;
+      const currentCount = myProductsList.length;
+      const limitReached = currentCount >= maxLimit;
+      const isEditing = !!productIdEl.value;
+      const bannerContainer = document.getElementById('planBannerContainer');
+      const planName = PLAN_NAMES[rawPlan] || 'Gratis';
+
+      if (limitReached && !isEditing) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '🚫 Límite de catálogo alcanzado';
+        bannerContainer.innerHTML = `
+          <div class="bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-2xl p-4 shadow-md space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full">Plan ${planName}</span>
+              <span class="text-xs font-extrabold">${currentCount} / ${maxLimit === Infinity ? '∞' : maxLimit} productos</span>
+            </div>
+            <p class="text-xs font-bold leading-relaxed">Has alcanzado el límite máximo de productos de tu Plan ${planName}.</p>
+          </div>`;
+      } else {
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEditing ? 'Actualizar' : 'Publicar';
+        bannerContainer.innerHTML = `
+          <div class="bg-slate-800 text-white rounded-2xl p-3 shadow-sm flex items-center justify-between text-xs">
+            <div>
+              <span class="font-extrabold text-emerald-400 uppercase tracking-wider">Plan ${planName}</span>
+              <p class="text-[11px] text-slate-300">Catálogo: <span class="font-bold text-white">${currentCount}</span> de <span class="font-bold text-white">${maxLimit === Infinity ? 'Ilimitado' : maxLimit}</span> productos</p>
+            </div>
+          </div>`;
+      }
+    }
+
+    async function loadMyProducts() {
+      const container = document.getElementById('myProducts');
+      const { data, error } = await _supabase
+        .from('products')
+        .select('*, categories(name, icon)')
+        .eq('store_id', currentStore.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        container.innerHTML = '<p class="text-red-500 text-sm py-8 text-center">Error al cargar productos.</p>';
+        return;
+      }
+
+      myProductsList = data || [];
+      renderMyProducts();
+      checkPlanLimits();
+    }
+
+    (async () => {
+      try {
+        const guardRes = await guardDashboardPage();
+        if (!guardRes || !guardRes.session || !guardRes.store) return;
+
+        currentUser = guardRes.session.user;
+        const { data: freshStore } = await _supabase.from('stores').select('*').eq('id', guardRes.store.id).single();
+        currentStore = freshStore || guardRes.store;
+
+        await initDashboardNav({ store: currentStore, user: currentUser });
+        await loadCategories();
+        initProductImageDrop();
+
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+
+        document.getElementById('productSearch').addEventListener('input', (e) => {
+          productSearchTerm = e.target.value.toLowerCase().trim();
+          renderMyProducts();
+        });
+
+        await loadMyProducts();
+      } catch(err) {
+        console.error(err);
+      }
+    })();
+
+    async function loadCategories() {
+      const { data } = await _supabase.from('categories').select('*').order('sort_order');
+      document.getElementById('category').innerHTML = '<option value="">Selecciona categoría...</option>' + (data || []).map(c => `<option value="${c.id}">${c.icon || ''} ${c.name}</option>`).join('');
+    }
+
+    function initProductImageDrop() {
+      productImgUI = dashSetupDropzone({
+        dropId: 'imgDrop', inputId: 'imgFile', previewId: 'imgPreview', imgId: 'imgPreviewSrc', placeholderId: 'imgPlaceholder', removeId: 'imgRemove',
+        onFile: (f) => { pendingProductFile = f; if (!f) currentProductImageUrl = null; }
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      saveBtn.disabled = true; saveBtn.textContent = 'Guardando...';
+
+      try {
+        let image_url = document.getElementById('imageUrl').value.trim() || currentProductImageUrl;
+        if (pendingProductFile) {
+          image_url = await uploadImage(pendingProductFile, 'products', currentUser.id);
+        }
+
+        const isOnSale = isOnSaleCheck?.checked || false;
+        const origPriceInput = document.getElementById('originalPrice');
+        const expiresAtInput = document.getElementById('saleExpiresAt');
+
+        const origPrice = isOnSale && origPriceInput && origPriceInput.value ? parseFloat(origPriceInput.value) : null;
+        const expiresAt = isOnSale && expiresAtInput && expiresAtInput.value ? new Date(expiresAtInput.value).toISOString() : null;
+
+        const payload = {
+          store_id: currentStore.id,
+          category_id: parseInt(document.getElementById('category').value, 10) || null,
+          title: document.getElementById('title').value.trim(),
+          description: document.getElementById('description').value.trim() || null,
+          price: parseFloat(document.getElementById('price').value),
+          image_url,
+          is_on_sale: isOnSale,
+          original_price: origPrice,
+          sale_expires_at: expiresAt
+        };
+
+        const id = productIdEl.value;
+        if (id) {
+          await _supabase.from('products').update(payload).eq('id', id);
+        } else {
+          await _supabase.from('products').insert([payload]);
+        }
+
+        form.reset();
+        productIdEl.value = '';
+        if (saleFieldsContainer) saleFieldsContainer.classList.add('hidden');
+        if (productImgUI) productImgUI.clearPreview();
+        await loadMyProducts();
+      } catch (err) {
+        alert('Error al guardar: ' + err.message);
+      } finally {
+        saveBtn.disabled = false; saveBtn.textContent = 'Publicar';
+      }
+    });
+
+    function renderMyProducts() {
+      const container = document.getElementById('myProducts');
+      let list = myProductsList;
+      if (productSearchTerm) {
+        list = myProductsList.filter(p => p.title.toLowerCase().includes(productSearchTerm));
+      }
+      document.getElementById('countBadge').textContent = list.length;
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="bg-white rounded-2xl p-8 text-center"><p class="text-slate-500 text-xs">Sin productos.</p></div>';
+        return;
+      }
+
+      container.innerHTML = list.map(p => `
+        <article class="bg-white rounded-2xl shadow-sm border p-3 flex gap-3 items-center">
+          <img src="${p.image_url || window.PLACEHOLDER_IMG}" class="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0">
+          <div class="flex-1 min-w-0">
+            <h3 class="font-bold text-slate-800 text-xs truncate">${dashEscapeHtml(p.title)}</h3>
+            <p class="text-xs font-black text-emerald-600">Q ${parseFloat(p.price).toFixed(2)} ${p.is_on_sale ? '<span class="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded ml-1 font-bold">🔥 Oferta</span>' : ''}</p>
+          </div>
+          <button data-action="edit" data-id="${p.id}" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded-xl">Editar</button>
+        endarticle`).join('');
+
+      container.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.onclick = () => {
+          const p = myProductsList.find(x => String(x.id) === String(btn.dataset.id));
+          if (!p) return;
+          productIdEl.value = p.id;
+          document.getElementById('category').value = p.category_id || '';
+          document.getElementById('title').value = p.title || '';
+          document.getElementById('description').value = p.description || '';
+          document.getElementById('price').value = p.price || '';
+          currentProductImageUrl = p.image_url || null;
+          if (p.image_url && productImgUI) productImgUI.showPreview(p.image_url);
+
+          if (isOnSaleCheck) isOnSaleCheck.checked = !!p.is_on_sale;
+          if (p.is_on_sale) {
+            if (saleFieldsContainer) saleFieldsContainer.classList.remove('hidden');
+            if (document.getElementById('originalPrice')) document.getElementById('originalPrice').value = p.original_price || '';
+            if (document.getElementById('saleExpiresAt') && p.sale_expires_at) {
+              document.getElementById('saleExpiresAt').value = p.sale_expires_at.substring(0, 16);
+            }
+          } else {
+            if (saleFieldsContainer) saleFieldsContainer.classList.add('hidden');
+          }
+          saveBtn.textContent = 'Actualizar';
+          cancelBtn.classList.remove('hidden');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+      });
+    }
+
+    cancelBtn.onclick = () => {
+      form.reset(); productIdEl.value = ''; cancelBtn.classList.add('hidden'); saveBtn.textContent = 'Publicar';
+      if (saleFieldsContainer) saleFieldsContainer.classList.add('hidden');
+      if (productImgUI) productImgUI.clearPreview();
+    };
+  </script>
+</body>
+</html>

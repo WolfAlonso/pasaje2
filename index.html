@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title class="theme-title">Pasaje de los Altos · Mercado Local</title>
+  <meta name="title" content="Pasaje de los Altos · Mercado Local">
+  <meta name="description" content="Directorio comercial local. Descubre productos de emprendedores de tu comunidad y contáctalos por WhatsApp.">
+  <meta name="theme-color" content="#1e3a8a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Pasaje Altos">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+  <link rel="icon" href="img/favicon.ico">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js?v=4"></script>
+
+  <script>
+    (function () {
+      if (typeof window.PLACEHOLDER_IMG === 'undefined') {
+        window.PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#f1f5f9"/><text x="50%" y="50%" text-anchor="middle" dy=".35em" fill="#94a3b8" font-family="sans-serif" font-size="20">Sin imagen</text></svg>'
+        );
+      }
+      if (typeof window.cleanPhone === 'undefined') {
+        window.cleanPhone = function (raw) { return String(raw || '').replace(/\D/g, ''); };
+      }
+      if (typeof window.heartSVG === 'undefined') {
+        window.heartSVG = function (filled) {
+          var fill = filled ? 'currentColor' : 'none';
+          return '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="' + fill + '" stroke="' + (filled ? '#ef4444' : 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+        };
+      }
+      if (typeof window.Favorites === 'undefined') {
+        var _favs = [];
+        try { _favs = JSON.parse(localStorage.getItem('pasaje_favorites') || '[]'); } catch (e) { _favs = []; }
+        function persistFavs() { try { localStorage.setItem('pasaje_favorites', JSON.stringify(_favs)); } catch (e) {} }
+        window.Favorites = {
+          getAll: function () { return _favs.slice(); },
+          has: function (id) { return _favs.indexOf(String(id)) >= 0; },
+          count: function () { return _favs.length; },
+          add: function (id) { var s = String(id); if (_favs.indexOf(s) < 0) { _favs.push(s); persistFavs(); } },
+          remove: function (id) { _favs = _favs.filter(function (x) { return x !== String(id); }); persistFavs(); },
+          toggle: function (id) {
+            var s = String(id); var i = _favs.indexOf(s);
+            if (i >= 0) { _favs.splice(i, 1); persistFavs(); return false; }
+            _favs.push(s); persistFavs(); return true;
+          }
+        };
+      }
+    })();
+  </script>
+
+  <script src="js/theme-loader.js?v=9"></script>
+  <script src="js/cart.js?v=9"></script>
+  <script src="js/footer.js?v=4"></script>
+  <script src="js/categories-render.js?v=5"></script>
+  <script src="js/stores-render.js?v=4"></script>
+  <script src="js/public-sidebar.js?v=5"></script>
+  <script src="js/liquid-glass.js?v=4"></script>
+
+  <script src="js/services/products-service.js?v=4"></script>
+  <script src="js/ui/product-card.js?v=3"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .product-card { cursor: pointer; }
+    .product-card .no-click { cursor: default; }
+    .fav-btn, .modal-fav-btn { color: #94a3b8; transition: color .15s ease; }
+    .fav-btn:hover, .modal-fav-btn:hover { color: #ef4444; }
+    .fav-btn.fav-active, .modal-fav-btn.fav-active { color: #ef4444 !important; }
+    input::placeholder, textarea::placeholder { color: #94a3b8 !important; opacity: 1; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col text-slate-800">
+
+  <div id="publicSidebar"></div>
+
+  <header class="glass-header text-white shadow-lg sticky top-0 z-40 border-b border-white/10 theme-header">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="sidebarToggleBtn" type="button"
+          class="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition flex items-center justify-center border border-white/15 text-white"
+          title="Menú" aria-label="Abrir menú">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6"  x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <a href="index.html" class="flex items-center gap-2 text-lg sm:text-xl font-extrabold tracking-tight min-w-0">
+          <img class="theme-logo hidden w-8 h-8 rounded-full object-cover bg-white/10 border border-white/20" src="" alt="logo">
+          <span class="theme-title truncate text-white">Pasaje de los <span class="text-emerald-400">Altos</span></span>
+        </a>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="categorias.html" class="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-2 rounded-xl border border-white/15 flex items-center gap-1.5 transition shadow-sm" title="Categorías">
+          <span>🏷️</span>
+          <span class="hidden sm:inline">Categorías</span>
+        </a>
+
+        <button type="button" onclick="if(window.PasajeCart) window.PasajeCart.openDrawer();"
+           class="relative bg-white/10 hover:bg-white/20 p-2 rounded-xl transition border border-white/15 text-white flex items-center justify-center" title="Carrito">
+          🛒
+          <span class="cart-count-badge hidden absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow">0</span>
+        </button>
+
+        <a id="favBtn" href="favoritos.html"
+           class="relative bg-white/10 hover:bg-white/20 p-2 rounded-xl transition border border-white/15 text-white" title="Mis favoritos">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span id="favCount" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow">0</span>
+        </a>
+        <a id="ctaBtn" href="login.html"
+           class="bg-emerald-500 hover:bg-emerald-600 text-white px-3.5 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition shadow">
+          + Vender
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 w-full flex-1">
+
+    <!-- 🔥 SECCIÓN DE OFERTAS RELÁMPAGO (ESTILO KEMIK) -->
+    <section id="flashSalesSection" class="mb-8 hidden bg-gradient-to-r from-rose-500 to-amber-500 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
+      <div class="absolute -right-10 -bottom-10 text-white/10 text-9xl font-black pointer-events-none">⚡</div>
+      
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 relative z-10">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl animate-bounce">🔥</span>
+          <div>
+            <h2 class="text-lg sm:text-xl font-black tracking-tight">Ofertas Relámpago</h2>
+            <p class="text-xs text-white/90 font-medium">¡Descuentos por tiempo limitado en comercios de Xela!</p>
+          </div>
+        </div>
+        
+        <!-- Temporizador Global o Contador -->
+        <div id="flashTimerGlobal" class="bg-black/30 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center gap-2 border border-white/20 text-xs font-black">
+          <span>⚡ Termina en:</span>
+          <span id="globalCountdown" class="font-mono text-amber-300">00:00:00</span>
+        </div>
+      </div>
+
+      <div id="flashSalesList" class="flex gap-4 overflow-x-auto pb-2 no-scrollbar snap-x snap-mandatory relative z-10"></div>
+    </section>
+
+    <!-- PRODUCTOS DESTACADOS -->
+    <section id="featuredSection" class="mb-8 hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base sm:text-lg font-extrabold text-slate-800 flex items-center gap-2">
+          <span class="text-amber-500">⭐</span> Productos Destacados
+        </h2>
+      </div>
+      <div id="featuredList" class="flex gap-4 overflow-x-auto pb-3 no-scrollbar snap-x snap-mandatory"></div>
+    </section>
+
+    <!-- BUSCADOR Y FILTROS -->
+    <section id="searchSection" class="mb-8 glass-container p-5 sm:p-6 rounded-3xl relative z-30">
+      <h2 class="module-title text-2xl sm:text-3xl font-black tracking-tight mb-1">Encuentra emprendimientos locales</h2>
+      <p class="module-body text-xs sm:text-sm mb-4 font-medium">Explora productos locales en Quetzaltenango y realiza tus pedidos directamente por WhatsApp.</p>
+      
+      <div class="relative z-30">
+        <div class="relative flex-1">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 z-10">
+            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+
+          <input id="searchInput" type="text" placeholder="Buscar producto por nombre..." autocomplete="off"
+            class="w-full pl-10 pr-10 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-xs sm:text-sm font-semibold text-slate-800 bg-white shadow-sm transition">
+
+          <button id="clearSearchBtn" type="button"
+            class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition z-10" title="Limpiar búsqueda">
+            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div id="predictiveResults"
+          class="hidden absolute left-0 right-0 top-full mt-2 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 max-h-96 overflow-y-auto">
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-200/60">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-bold text-slate-600 flex items-center gap-1">Precio:</span>
+          <div class="flex items-center gap-1.5">
+            <input id="minPriceInput" type="number" min="0" step="1" placeholder="Q Mín"
+              class="w-20 sm:w-24 px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
+            <span class="text-slate-400 font-bold text-xs">-</span>
+            <input id="maxPriceInput" type="number" min="0" step="1" placeholder="Q Máx"
+              class="w-20 sm:w-24 px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
+            <button id="clearPriceBtn" type="button" title="Limpiar rango"
+              class="hidden text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-2.5 py-2 rounded-xl transition">✕</button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label for="sortSelect" class="text-xs font-bold text-slate-600">Orden:</label>
+          <select id="sortSelect"
+            class="border border-slate-200 rounded-xl px-3 py-2 bg-white text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-sm">
+            <option value="recent">🕒 Más recientes</option>
+            <option value="popular">❤️ Más populares</option>
+            <option value="price-asc">💲 Menor precio</option>
+            <option value="price-desc">💰 Mayor precio</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section id="storesSection" class="mb-8 relative z-10">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base sm:text-lg font-extrabold text-slate-800 flex items-center gap-2">
+          <span class="text-emerald-500">🏪</span> Tiendas Destacadas
+        </h2>
+      </div>
+      <div id="storesCarousel" class="flex gap-4 overflow-x-auto pb-3 no-scrollbar snap-x snap-mandatory"></div>
+    </section>
+
+    <div id="categoryFilters" class="flex gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar snap-x relative z-10"></div>
+
+    <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-10">
+      <p class="col-span-full text-center text-slate-500 py-12 text-sm font-semibold">Cargando catálogo local...</p>
+    </div>
+  </main>
+
+  <div id="pasajeFooter"></div>
+
+  <!-- MODAL QUICK VIEW -->
+  <div id="productModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
+      <div id="productModalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const loadedProductsMap = new Map();
+    let currentPage = 0;
+    let isLoading = false;
+    let hasMore = true;
+    let currentCategory = 'todas';
+    let searchTerm = '';
+    let minPrice = null;
+    let maxPrice = null;
+    let currentSort = 'recent';
+    let predictiveCache = [];
+
+    const grid = document.getElementById('productsGrid');
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const predictiveResults = document.getElementById('predictiveResults');
+    const minPriceInput = document.getElementById('minPriceInput');
+    const maxPriceInput = document.getElementById('maxPriceInput');
+    const clearPriceBtn = document.getElementById('clearPriceBtn');
+    const sortSelect = document.getElementById('sortSelect');
+    const featuredSection = document.getElementById('featuredSection');
+    const featuredList = document.getElementById('featuredList');
+    const flashSalesSection = document.getElementById('flashSalesSection');
+    const flashSalesList = document.getElementById('flashSalesList');
+    const favCountEl = document.getElementById('favCount');
+    const productModal = document.getElementById('productModal');
+    const productModalContent = document.getElementById('productModalContent');
+
+    function debounce(fn, delay = 300) {
+      let timer;
+      return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+      };
+    }
+
+    document.getElementById('sidebarToggleBtn')?.addEventListener('click', () => {
+      if (typeof window.togglePublicSidebar === 'function') window.togglePublicSidebar();
+    });
+
+    window.setCatalogCategory = function (slug) {
+      currentCategory = slug || 'todas';
+      resetAndReload();
+    };
+
+    function updateFavCount() {
+      if (!favCountEl || !window.Favorites) return;
+      const n = window.Favorites.count();
+      if (n === 0) favCountEl.classList.add('hidden');
+      else { favCountEl.textContent = n; favCountEl.classList.remove('hidden'); }
+    }
+
+    // CARGAR OFERTAS RELÁMPAGO
+    async function loadFlashSales() {
+      try {
+        const { data, error } = await _supabase
+          .from('products')
+          .select(`id, title, price, original_price, is_on_sale, sale_expires_at, image_url, store_id,
+                   stores ( name, whatsapp, is_verified ),
+                   categories ( name, icon ),
+                   product_images ( image_url, sort_order ),
+                   product_variants (*)`)
+          .eq('is_on_sale', true)
+          .eq('is_active', true)
+          .order('sale_expires_at', { ascending: true });
+
+        if (error || !data || data.length === 0) {
+          flashSalesSection.classList.add('hidden');
+          return;
+        }
+
+        const now = new Date();
+        const activeSales = data.filter(p => !p.sale_expires_at || new Date(p.sale_expires_at) > now);
+
+        if (activeSales.length === 0) {
+          flashSalesSection.classList.add('hidden');
+          return;
+        }
+
+        activeSales.forEach(p => loadedProductsMap.set(String(p.id), p));
+        flashSalesSection.classList.remove('hidden');
+
+        flashSalesList.innerHTML = activeSales.map(p => {
+          const storeName = p.stores?.name || 'Tienda';
+          const storeWhatsapp = p.stores?.whatsapp || '';
+          const origPrice = parseFloat(p.original_price || p.price * 1.25);
+          const salePrice = parseFloat(p.price);
+          const diff = origPrice - salePrice;
+          const discountPct = origPrice > 0 ? Math.round((diff / origPrice) * 100) : 20;
+
+          return `
+            <div class="product-card bg-white rounded-2xl p-3 shadow-lg flex-shrink-0 w-56 text-slate-950 flex flex-col justify-between snap-start" data-product-id="${p.id}">
+              <div>
+                <div class="relative rounded-xl overflow-hidden bg-slate-100 aspect-square mb-2.5">
+                  <img src="${p.image_url || window.PLACEHOLDER_IMG}" alt="${ProductCardUI.escapeHtml(p.title)}" class="w-full h-full object-cover">
+                  <span class="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">-${discountPct}% OFF</span>
+                </div>
+                <h4 class="text-xs font-black text-slate-900 truncate">${ProductCardUI.escapeHtml(p.title)}</h4>
+                <p class="text-[10px] text-slate-500 truncate">🏪 ${ProductCardUI.escapeHtml(storeName)}</p>
+              </div>
+
+              <div class="mt-3 pt-2 border-t border-slate-100">
+                <div class="flex items-baseline gap-1.5">
+                  <span class="text-xs font-bold text-slate-400 line-through">Q ${origPrice.toFixed(2)}</span>
+                  <span class="text-sm font-black text-rose-600">Q ${salePrice.toFixed(2)}</span>
+                </div>
+                <button type="button" data-action="add-cart" data-product-id="${p.id}"
+                  class="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-1.5 rounded-xl text-[11px] transition">
+                  ⚡ Aprovechar Oferta
+                </button>
+              </div>
+            </div>`;
+        }).join('');
+
+        // Iniciar temporizador global de ofertas
+        startGlobalCountdown(activeSales[0]?.sale_expires_at);
+
+      } catch (err) {
+        console.warn('[Index] Error cargando ofertas relámpago:', err);
+      }
+    }
+
+    function startGlobalCountdown(expiresAt) {
+      const timerEl = document.getElementById('globalCountdown');
+      if (!timerEl) return;
+
+      const target = expiresAt ? new Date(expiresAt).getTime() : new Date().getTime() + 86400000;
+
+      setInterval(() => {
+        const now = new Date().getTime();
+        const distance = target - now;
+
+        if (distance < 0) {
+          timerEl.textContent = '00:00:00';
+          return;
+        }
+
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        timerEl.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    async function loadFeaturedProducts() {
+      try {
+        const featured = await ProductsService.getFeaturedProducts(10);
+        if (!featured || featured.length === 0) {
+          featuredSection.classList.add('hidden');
+          return;
+        }
+        featured.forEach(p => loadedProductsMap.set(String(p.id), p));
+        featuredSection.classList.remove('hidden');
+        featuredList.innerHTML = featured.map(p => ProductCardUI.render(p, { isFeatured: true })).join('');
+      } catch (err) {}
+    }
+
+    async function loadProductsPage(reset = false) {
+      if (isLoading) return;
+      if (reset) {
+        currentPage = 0;
+        hasMore = true;
+        loadedProductsMap.clear();
+        grid.innerHTML = '';
+      }
+      if (!hasMore) return;
+      isLoading = true;
+
+      try {
+        const res = await ProductsService.getProducts({
+          page: currentPage,
+          limit: ProductsService.PAGE_SIZE,
+          categorySlug: currentCategory,
+          searchTerm: searchTerm,
+          sortBy: currentSort,
+          minPrice: minPrice,
+          maxPrice: maxPrice
+        });
+
+        res.products.forEach(p => loadedProductsMap.set(String(p.id), p));
+
+        if (reset && res.products.length === 0) {
+          grid.innerHTML = '<p class="col-span-full text-center text-slate-500 py-12 text-xs font-semibold">No se encontraron productos.</p>';
+        } else {
+          grid.insertAdjacentHTML('beforeend', res.products.map(p => ProductCardUI.render(p)).join(''));
+        }
+
+        hasMore = res.hasMore;
+        currentPage++;
+      } catch (err) {
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    function resetAndReload() { loadProductsPage(true); }
+
+    const triggerPredictiveSearch = debounce(async (val) => {
+      const term = val.trim();
+      if (term.length < 2) { predictiveResults.classList.add('hidden'); return; }
+      try {
+        const results = await ProductsService.searchPredictive(term, 6);
+        predictiveCache = results;
+        if (!results || results.length === 0) {
+          predictiveResults.innerHTML = '<div class="p-4 text-center text-xs text-slate-500 font-medium">Sin coincidencias</div>';
+          predictiveResults.classList.remove('hidden');
+          return;
+        }
+        predictiveResults.innerHTML = results.map(p => `
+          <div class="predictive-item p-2.5 hover:bg-emerald-50 transition cursor-pointer flex items-center gap-3 border-b last:border-0" data-product-id="${p.id}">
+            <img src="${p.image_url || window.PLACEHOLDER_IMG}" class="w-11 h-11 rounded-xl object-cover bg-slate-100 flex-shrink-0">
+            <div class="flex-1 min-w-0"><h4 class="text-xs font-bold text-slate-900 truncate">${ProductCardUI.escapeHtml(p.title)}</h4></div>
+            <span class="text-xs font-black text-emerald-600">Q ${parseFloat(p.price).toFixed(2)}</span>
+          </div>`).join('');
+        predictiveResults.classList.remove('hidden');
+      } catch (e) {}
+    }, 300);
+
+    searchInput?.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (val) clearSearchBtn.classList.remove('hidden');
+      else { clearSearchBtn.classList.add('hidden'); predictiveResults.classList.add('hidden'); }
+      triggerPredictiveSearch(val);
+    });
+
+    predictiveResults?.addEventListener('click', (e) => {
+      const item = e.target.closest('.predictive-item');
+      if (item) {
+        const matched = predictiveCache.find(x => String(x.id) === String(item.dataset.productId));
+        if (matched) { loadedProductsMap.set(String(matched.id), matched); predictiveResults.classList.add('hidden'); openProductModal(matched); }
+      }
+    });
+
+    clearSearchBtn?.addEventListener('click', () => { searchInput.value = ''; searchTerm = ''; clearSearchBtn.classList.add('hidden'); predictiveResults.classList.add('hidden'); resetAndReload(); });
+
+    document.addEventListener('click', (e) => {
+      if (searchInput && predictiveResults && !searchInput.contains(e.target) && !predictiveResults.contains(e.target)) predictiveResults.classList.add('hidden');
+    });
+
+    minPriceInput?.addEventListener('input', debounce(() => { minPrice = minPriceInput.value.trim() || null; clearPriceBtn.classList.toggle('hidden', !minPrice && !maxPrice); resetAndReload(); }, 350));
+    maxPriceInput?.addEventListener('input', debounce(() => { maxPrice = maxPriceInput.value.trim() || null; clearPriceBtn.classList.toggle('hidden', !minPrice && !maxPrice); resetAndReload(); }, 350));
+    clearPriceBtn?.addEventListener('click', () => { minPriceInput.value = ''; maxPriceInput.value = ''; minPrice = null; maxPrice = null; clearPriceBtn.classList.add('hidden'); resetAndReload(); });
+    sortSelect?.addEventListener('change', (e) => { currentSort = e.target.value; resetAndReload(); });
+
+    function handleProductActionClick(e) {
+      const favBtn = e.target.closest('[data-action="toggle-fav"]');
+      if (favBtn) {
+        e.preventDefault(); e.stopPropagation();
+        const pid = favBtn.dataset.productId;
+        const nowFav = window.Favorites.toggle(pid);
+        document.querySelectorAll(`[data-action="toggle-fav"][data-product-id="${pid}"]`).forEach(btn => {
+          btn.classList.toggle('fav-active', nowFav);
+          btn.style.color = nowFav ? '#ef4444' : '';
+          btn.innerHTML = window.heartSVG(nowFav);
+        });
+        updateFavCount();
+        return;
+      }
+
+      const cartBtn = e.target.closest('[data-action="add-cart"]');
+      if (cartBtn) {
+        e.preventDefault(); e.stopPropagation();
+        const pid = cartBtn.dataset.productId;
+        const product = loadedProductsMap.get(String(pid));
+        if (product && window.PasajeCart) {
+          window.PasajeCart.addToCart({
+            id: product.id, title: product.title, price: product.price,
+            image_url: product.image_url, storeId: product.store_id,
+            storeName: product.stores?.name || product.store_name,
+            storeWhatsapp: product.stores?.whatsapp || product.store_whatsapp
+          });
+        }
+        return;
+      }
+
+      const card = e.target.closest('.product-card');
+      if (card) {
+        const product = loadedProductsMap.get(String(card.dataset.productId));
+        if (product) openProductModal(product);
+      }
+    }
+
+    grid.addEventListener('click', handleProductActionClick);
+    featuredList?.addEventListener('click', handleProductActionClick);
+    flashSalesList?.addEventListener('click', handleProductActionClick);
+
+    async function openProductModal(p) {
+      const isFav = window.Favorites ? window.Favorites.has(p.id) : false;
+      const galleryHTML = ProductCardUI.renderGalleryHTML(p.images || p.product_images, p.title);
+      const variantsHTML = ProductCardUI.renderVariantsHTML(p.variants);
+
+      productModalContent.innerHTML = `
+        <div class="relative">
+          <button id="closeProductModalBtn" class="absolute top-3 right-3 z-10 bg-white/90 hover:bg-white text-slate-800 w-8 h-8 rounded-full shadow flex items-center justify-center font-bold text-xs">✕</button>
+          <div class="p-4 sm:p-5 pb-0">${galleryHTML}</div>
+        </div>
+        <div class="p-5">
+          <h2 class="text-lg font-extrabold text-slate-900">${ProductCardUI.escapeHtml(p.title)}</h2>
+          <p class="text-2xl font-black text-emerald-600 mt-2">Q ${parseFloat(p.price).toFixed(2)}</p>
+          ${p.description ? `<p class="text-xs text-slate-600 mt-2">${ProductCardUI.escapeHtml(p.description)}</p>` : ''}
+          ${variantsHTML}
+          <div class="mt-5 space-y-2">
+            <button type="button" id="modalAddToCartBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition">🛒 Añadir al carrito</button>
+          </div>
+        </div>`;
+
+      productModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      document.getElementById('closeProductModalBtn').onclick = () => { productModal.classList.add('hidden'); document.body.style.overflow = ''; };
+      document.getElementById('modalAddToCartBtn').onclick = () => {
+        if (window.PasajeCart) {
+          window.PasajeCart.addToCart({
+            id: p.id, title: p.title, price: p.price, image_url: p.image_url,
+            storeId: p.store_id, storeName: p.stores?.name || p.store_name, storeWhatsapp: p.stores?.whatsapp || p.store_whatsapp
+          });
+          productModal.classList.add('hidden'); document.body.style.overflow = '';
+        }
+      };
+    }
+
+    try { updateFavCount(); } catch (e) {}
+    try { loadFlashSales(); } catch (e) {}
+    try { loadFeaturedProducts(); } catch (e) {}
+    try { loadProductsPage(true); } catch (e) {}
+  </script>
+</body>
+</html>

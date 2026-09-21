@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tienda · Pasaje de los Altos</title>
+  <meta name="theme-color" content="#1e3a8a">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="img/favicon.ico">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js?v=4"></script>
+
+  <script src="js/theme-loader.js?v=9"></script>
+  <script src="js/cart.js?v=7"></script>
+  <script src="js/footer.js?v=4"></script>
+  <script src="js/public-sidebar.js?v=5"></script>
+  <script src="js/liquid-glass.js?v=4"></script>
+
+  <!-- MÓDULOS DE SERVICIO Y RENDERIZADO -->
+  <script src="js/services/products-service.js?v=4"></script>
+  <script src="js/ui/product-card.js?v=3"></script>
+  <script src="js/stores-render.js?v=6"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+    .glass-card {
+      background-color: rgba(255, 255, 255, 0.88) !important;
+      backdrop-filter: blur(14px) saturate(160%);
+      -webkit-backdrop-filter: blur(14px) saturate(160%);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+    }
+    .glass-header {
+      background-color: rgba(30, 58, 138, 0.95) !important;
+      backdrop-filter: blur(16px) saturate(160%);
+      -webkit-backdrop-filter: blur(16px) saturate(160%);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col text-slate-800">
+
+  <div id="publicSidebar"></div>
+
+  <!-- HEADER -->
+  <header class="glass-header text-white shadow-lg sticky top-0 z-40 border-b border-white/10 theme-header">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="sidebarToggleBtn" type="button"
+          class="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition flex items-center justify-center border border-white/15 text-white"
+          title="Menú" aria-label="Abrir menú">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6"  x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <a href="index.html" class="flex items-center gap-2 text-lg sm:text-xl font-extrabold tracking-tight min-w-0">
+          <span class="theme-title truncate text-white">Pasaje de los <span class="text-emerald-400">Altos</span></span>
+        </a>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="if(window.PasajeCart) window.PasajeCart.openDrawer();"
+           class="relative bg-white/10 hover:bg-white/20 p-2 rounded-xl transition border border-white/15 text-white flex items-center justify-center" title="Carrito">
+          🛒
+          <span class="cart-count-badge hidden absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow">0</span>
+        </button>
+
+        <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl font-bold text-xs transition border border-white/15">
+          ↩ Volver al catálogo
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 w-full flex-1">
+    
+    <!-- 1. HEADER GEOGRÁFICO DE LA TIENDA -->
+    <div id="storeHeaderContainer" class="mb-8"></div>
+
+    <!-- 2. CATÁLOGO INTERNO DE LA TIENDA Y BUSCADOR -->
+    <section class="mb-10">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-lg font-black text-slate-900 flex items-center gap-2">
+            <span>📦</span> Productos de esta tienda
+          </h2>
+          <p class="text-xs font-semibold text-slate-500">Explora el catálogo disponible para pedido directo por WhatsApp.</p>
+        </div>
+
+        <!-- Buscador interno de productos -->
+        <div class="w-full sm:w-72">
+          <input id="storeSearchInput" type="text" placeholder="Buscar en esta tienda..."
+            class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
+        </div>
+      </div>
+
+      <div id="storeProductsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <p class="col-span-full text-center text-slate-500 py-12 text-sm font-semibold">Cargando catálogo de la tienda...</p>
+      </div>
+    </section>
+
+    <!-- 3. RESEÑAS DE LA TIENDA -->
+    <section class="mb-12 bg-white rounded-3xl p-6 shadow-sm border border-slate-200/80">
+      <h3 class="text-base font-extrabold text-slate-900 mb-4 flex items-center gap-2">
+        <span>⭐</span> Reseñas y Calificaciones de Clientes
+      </h3>
+      <div id="storeReviewsContainer" class="space-y-3">
+        <p class="text-xs text-slate-400 italic">Cargando opiniones...</p>
+      </div>
+    </section>
+
+    <!-- 4. SECCIÓN DE EXPLORACIÓN DE OTRAS TIENDAS (REUTILIZA STORES-RENDER) -->
+    <section id="otherStoresSection" class="mb-8 pt-6 border-t border-slate-200/80">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+            <span>🏪</span> Explorar otras tiendas en Quetzaltenango
+          </h2>
+          <p class="text-xs font-semibold text-slate-500">Filtra por zona y descubre emprendimientos cercanos.</p>
+        </div>
+      </div>
+
+      <!-- Carrusel y Filtros por Zona -->
+      <div id="storesCarousel" class="flex gap-4 overflow-x-auto pb-3 no-scrollbar snap-x snap-mandatory"></div>
+    </section>
+
+  </main>
+
+  <div id="pasajeFooter"></div>
+
+  <!-- MODAL QUICK VIEW DE PRODUCTO -->
+  <div id="productModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
+      <div id="productModalContent"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentStore = null;
+    let storeProducts = [];
+    const loadedProductsMap = new Map();
+
+    document.getElementById('sidebarToggleBtn')?.addEventListener('click', () => {
+      if (typeof window.togglePublicSidebar === 'function') window.togglePublicSidebar();
+    });
+
+    function cleanPhoneJS(raw) { return String(raw || '').replace(/\D/g, ''); }
+
+    async function loadStoreData() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const slug = urlParams.get('slug');
+
+      if (!slug || typeof _supabase === 'undefined') {
+        document.getElementById('storeProductsContainer').innerHTML = '<p class="col-span-full text-center text-rose-600 py-12 font-bold">Tienda no encontrada.</p>';
+        return;
+      }
+
+      const { data: store, error } = await _supabase
+        .from('stores')
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle();
+
+      if (error || !store) {
+        document.getElementById('storeProductsContainer').innerHTML = '<p class="col-span-full text-center text-rose-600 py-12 font-bold">Tienda no disponible.</p>';
+        return;
+      }
+
+      currentStore = store;
+
+      // BADGES DE ZONA Y TIPO DE LOCAL
+      const isPhysical = store.has_physical_store !== false;
+      const zoneBadge = isPhysical
+        ? `<span class="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-extrabold px-3 py-1 rounded-full shadow-sm">📍 Local Físico - ${store.zone || 'Zona 1'}</span>`
+        : `<span class="bg-amber-100 text-amber-800 border border-amber-300 text-xs font-extrabold px-3 py-1 rounded-full shadow-sm">🛵 Venta en Línea / A Domicilio (${store.zone || 'Xela'})</span>`;
+
+      const verifiedBadge = store.is_verified 
+        ? `<span class="bg-blue-600 text-white text-xs font-extrabold px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1 self-start">✓ Verificada</span>`
+        : '';
+
+      const addressText = store.address_details || store.address || 'Quetzaltenango';
+      const mapsQuery = encodeURIComponent(`${store.name}, ${addressText}, Quetzaltenango`);
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+      
+      const waMessage = encodeURIComponent(`Hola ${store.name}, vi su tienda en Pasaje de los Altos y deseo consultar sobre sus productos.`);
+      const waUrl = store.whatsapp ? `https://wa.me/${cleanPhoneJS(store.whatsapp)}?text=${waMessage}` : null;
+
+      document.getElementById('storeHeaderContainer').innerHTML = `
+        <div class="glass-card rounded-3xl p-6 border border-slate-200/80 shadow-md">
+          <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+            <img src="${store.logo_url || 'img/logo.png'}" class="w-28 h-28 rounded-2xl object-cover bg-slate-100 border-2 border-white shadow-md flex-shrink-0" onerror="this.src='img/logo.png'">
+            
+            <div class="text-center md:text-left flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap justify-center md:justify-start mb-2">
+                <h1 class="text-2xl sm:text-3xl font-black text-slate-900">${store.name}</h1>
+                ${verifiedBadge}
+              </div>
+
+              <div class="flex items-center gap-2 flex-wrap justify-center md:justify-start mb-3">
+                ${zoneBadge}
+              </div>
+
+              <div class="space-y-1 text-xs text-slate-600 font-medium">
+                <p>🏢 <span class="font-bold text-slate-800">Dirección:</span> ${addressText}</p>
+                ${store.schedule ? `<p>🕒 <span class="font-bold text-slate-800">Horario:</span> ${store.schedule}</p>` : ''}
+              </div>
+
+              ${store.description ? `<p class="text-xs sm:text-sm text-slate-600 mt-3 leading-relaxed">${store.description}</p>` : ''}
+
+              <!-- Botones de Acción Directa -->
+              <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-4 pt-3 border-t border-slate-200/60">
+                ${waUrl ? `
+                  <a href="${waUrl}" target="_blank" rel="noopener noreferrer"
+                     class="bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
+                    <span>💬 Contactar por WhatsApp</span>
+                  </a>` : ''}
+
+                ${isPhysical ? `
+                  <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
+                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow flex items-center gap-2">
+                    <span>🗺️ Abrir en Google Maps</span>
+                  </a>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // CARGAR PRODUCTOS DE LA TIENDA
+      const { data: products } = await _supabase
+        .from('products')
+        .select(`
+          *,
+          stores ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
+          categories ( id, name, slug, icon )
+        `)
+        .eq('store_id', store.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      storeProducts = (products || []).map(p => ProductsService.normalizeProduct(p));
+      storeProducts.forEach(p => loadedProductsMap.set(String(p.id), p));
+
+      renderStoreProducts(storeProducts);
+
+      // BUSCADOR INTERNO DE PRODUCTOS
+      document.getElementById('storeSearchInput')?.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+        const filtered = storeProducts.filter(p => (p.title || '').toLowerCase().includes(term));
+        renderStoreProducts(filtered);
+      });
+
+      // CARGAR RESEÑAS DE LA TIENDA
+      const reviews = await ProductsService.fetchStoreReviews(store.id);
+      const reviewsContainer = document.getElementById('storeReviewsContainer');
+      if (reviews.length === 0) {
+        reviewsContainer.innerHTML = '<p class="text-xs text-slate-400 italic">Esta tienda aún no tiene opiniones registradas.</p>';
+      } else {
+        reviewsContainer.innerHTML = reviews.map(r => `
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-900">${ProductCardUI.escapeHtml(r.customer_name)}</span>
+              ${ProductCardUI.renderStars(r.rating)}
+            </div>
+            <p class="text-[11px] text-emerald-600 font-semibold mt-0.5">Producto: ${ProductCardUI.escapeHtml(r.products?.title || 'General')}</p>
+            ${r.comment ? `<p class="text-slate-600 mt-1">${ProductCardUI.escapeHtml(r.comment)}</p>` : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    function renderStoreProducts(list) {
+      const container = document.getElementById('storeProductsContainer');
+      if (!list || list.length === 0) {
+        container.innerHTML = '<p class="col-span-full text-center text-slate-500 py-12 font-semibold text-xs">No hay productos que coincidan con la búsqueda.</p>';
+        return;
+      }
+
+      container.innerHTML = list.map(p => ProductCardUI.render(p)).join('');
+    }
+
+    // CLICK EN TARJETAS PARA ABRIR QUICK VIEW
+    document.getElementById('storeProductsContainer')?.addEventListener('click', (e) => {
+      const card = e.target.closest('.product-card');
+      if (!card || e.target.closest('.no-click')) return;
+
+      const pid = card.dataset.productId;
+      const product = loadedProductsMap.get(String(pid));
+      if (product) openQuickView(product);
+    });
+
+    function openQuickView(p) {
+      const modal = document.getElementById('productModal');
+      const box = document.getElementById('productModalContent');
+      
+      const isOutOfStock = !p.is_active || p.stock_quantity === 0;
+      const galleryHTML = ProductCardUI.renderGalleryHTML(p.images, p.title);
+
+      box.innerHTML = `
+        <div class="relative">
+          <button id="closeProductModalBtn" type="button"
+            class="absolute top-3 right-3 z-10 bg-white/90 hover:bg-white text-slate-800 w-8 h-8 rounded-full shadow flex items-center justify-center transition text-xs font-bold">✕</button>
+          <div class="p-4 sm:p-5 pb-0">${galleryHTML}</div>
+        </div>
+
+        <div class="p-5">
+          <span class="text-[10px] uppercase font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+            ${p.category_icon || '📦'} ${ProductCardUI.escapeHtml(p.category_name)}
+          </span>
+          <h2 class="text-lg font-extrabold text-slate-900 mt-1">${ProductCardUI.escapeHtml(p.title)}</h2>
+          <p class="text-2xl font-black text-emerald-600 mt-2">Q ${parseFloat(p.price || 0).toFixed(2)}</p>
+          ${p.description ? `<p class="text-xs text-slate-600 mt-2 leading-relaxed">${ProductCardUI.escapeHtml(p.description)}</p>` : ''}
+
+          <div class="mt-5 space-y-2">
+            ${isOutOfStock
+              ? `<button disabled class="w-full bg-slate-200 text-slate-600 font-bold py-3 rounded-xl cursor-not-allowed text-xs">Agotado</button>`
+              : `<button type="button" id="modalAddToCartBtn"
+                   class="w-full bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold py-2.5 rounded-xl text-xs transition">🛒 Añadir al carrito</button>
+                 <a href="${ProductCardUI.buildWAUrl(p, null, p.price)}" target="_blank" rel="noopener noreferrer"
+                   class="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 rounded-xl text-xs transition shadow flex items-center justify-center gap-2">Pedir por WhatsApp</a>`}
+          </div>
+        </div>`;
+
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      document.getElementById('closeProductModalBtn')?.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+      });
+
+      document.getElementById('modalAddToCartBtn')?.addEventListener('click', () => {
+        if (window.PasajeCart) {
+          window.PasajeCart.addToCart({
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            image_url: p.image_url,
+            storeId: p.store_id,
+            storeName: p.store_name,
+            storeWhatsapp: p.store_whatsapp
+          });
+          modal.classList.add('hidden');
+          document.body.style.overflow = '';
+        }
+      });
+    }
+
+    loadStoreData();
+  </script>
+</body>
+</html>

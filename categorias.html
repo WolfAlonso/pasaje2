@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title class="theme-title">Directorio de Categorías · Pasaje de los Altos</title>
+  <meta name="description" content="Explora el directorio de categorías y subcategorías de emprendedores locales en Quetzaltenango.">
+  <meta name="theme-color" content="#1e3a8a">
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="img/favicon.ico">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js?v=4"></script>
+
+  <script src="js/theme-loader.js?v=9"></script>
+  <script src="js/cart.js?v=9"></script>
+  <script src="js/footer.js?v=4"></script>
+  <script src="js/public-sidebar.js?v=5"></script>
+  <script src="js/liquid-glass.js?v=4"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col text-slate-800">
+
+  <!-- Sidebar público -->
+  <div id="publicSidebar"></div>
+
+  <!-- HEADER NAVEGACIÓN GLOBAL -->
+  <header class="glass-header text-white shadow-lg sticky top-0 z-40 border-b border-white/10 theme-header">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="sidebarToggleBtn" type="button"
+          class="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition flex items-center justify-center border border-white/15 text-white"
+          title="Menú" aria-label="Abrir menú">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6"  x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <a href="index.html" class="flex items-center gap-2 text-lg sm:text-xl font-extrabold tracking-tight min-w-0">
+          <img class="theme-logo hidden w-8 h-8 rounded-full object-cover bg-white/10 border border-white/20" src="" alt="logo">
+          <span class="theme-title truncate text-white">Pasaje de los <span class="text-emerald-400">Altos</span></span>
+        </a>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="categorias.html" class="bg-white/20 text-white font-bold text-xs px-3 py-2 rounded-xl border border-white/20 flex items-center gap-1.5 shadow-sm">
+          <span>🏷️</span>
+          <span class="hidden sm:inline">Categorías</span>
+        </a>
+        <button type="button" onclick="if(window.PasajeCart) window.PasajeCart.openDrawer();"
+           class="relative bg-white/10 hover:bg-white/20 p-2 rounded-xl transition border border-white/15 text-white flex items-center justify-center" title="Carrito">
+          🛒
+          <span class="cart-count-badge hidden absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow">0</span>
+        </button>
+
+        <a id="favBtn" href="favoritos.html"
+           class="relative bg-white/10 hover:bg-white/20 p-2 rounded-xl transition border border-white/15 text-white" title="Mis favoritos">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-1">
+    
+    <!-- ENCABEZADO DE SECCIÓN -->
+    <section class="mb-8 glass-container p-6 rounded-3xl">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">🏷️</span>
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-black text-slate-900">Directorio de Categorías</h1>
+          <p class="text-xs sm:text-sm font-medium text-slate-600 mt-0.5">Explora las secciones y subcategorías de productos disponibles en la comunidad.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- GRILLA DE CATEGORÍAS PADRE E HIJAS -->
+    <div id="categoryTreeContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="col-span-full py-12 text-center text-slate-400 font-semibold text-sm">
+        Cargando directorio de categorías...
+      </div>
+    </div>
+  </main>
+
+  <div id="pasajeFooter"></div>
+
+  <script>
+    document.getElementById('sidebarToggleBtn')?.addEventListener('click', () => {
+      if (typeof window.togglePublicSidebar === 'function') window.togglePublicSidebar();
+    });
+
+    async function loadCategoryTree() {
+      const container = document.getElementById('categoryTreeContainer');
+      if (!window._supabase) {
+        container.innerHTML = '<p class="col-span-full text-center text-rose-500 font-bold">Error de conexión con la base de datos.</p>';
+        return;
+      }
+
+      try {
+        // Cargar todas las categorías activas
+        const { data: categories, error: catErr } = await window._supabase
+          .from('categories')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+
+        if (catErr) throw catErr;
+
+        // Cargar conteo de productos por categoría
+        const { data: products } = await window._supabase
+          .from('products')
+          .select('id, category_id')
+          .eq('is_active', true);
+
+        const prodCounts = {};
+        (products || []).forEach(p => {
+          if (p.category_id != null) {
+            const key = String(p.category_id);
+            prodCounts[key] = (prodCounts[key] || 0) + 1;
+          }
+        });
+
+        // Separar Padres e Hijas
+        const mainCategories = categories.filter(c => !c.parent_id);
+        const childMap = new Map();
+
+        categories.forEach(c => {
+          if (c.parent_id) {
+            const parentKey = String(c.parent_id);
+            if (!childMap.has(parentKey)) childMap.set(parentKey, []);
+            childMap.get(parentKey).push(c);
+          }
+        });
+
+        if (mainCategories.length === 0) {
+          container.innerHTML = '<p class="col-span-full text-center text-slate-500 font-semibold">No hay categorías configuradas.</p>';
+          return;
+        }
+
+        container.innerHTML = mainCategories.map(parent => {
+          const children = childMap.get(String(parent.id)) || [];
+          const directCount = prodCounts[String(parent.id)] || 0;
+          
+          // Sumar productos de subcategorías
+          let totalBranchCount = directCount;
+          children.forEach(ch => {
+            totalBranchCount += (prodCounts[String(ch.id)] || 0);
+          });
+
+          const childrenHTML = children.map(ch => {
+            const chCount = prodCounts[String(ch.id)] || 0;
+            return `
+              <a href="index.html?cat=${encodeURIComponent(ch.slug)}"
+                 class="group/sub bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200/80 hover:border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center justify-between gap-2 shadow-sm">
+                <span class="flex items-center gap-1.5 truncate">
+                  <span>${ch.icon || '📌'}</span>
+                  <span class="truncate">${ch.name}</span>
+                </span>
+                <span class="bg-white group-hover/sub:bg-emerald-100 text-slate-500 group-hover/sub:text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200/60">
+                  ${chCount}
+                </span>
+              </a>`;
+          }).join('');
+
+          return `
+            <div class="glass-container p-6 rounded-3xl border border-slate-200/70 hover:shadow-xl transition flex flex-col justify-between">
+              <div>
+                <div class="flex items-start justify-between gap-3 mb-4">
+                  <div class="flex items-center gap-3">
+                    <span class="text-3xl p-3 bg-white/80 rounded-2xl shadow-sm border border-slate-100">${parent.icon || '📦'}</span>
+                    <div>
+                      <a href="index.html?cat=${encodeURIComponent(parent.slug)}" class="text-lg font-extrabold text-slate-900 hover:text-emerald-600 transition">
+                        ${parent.name}
+                      </a>
+                      <p class="text-xs font-semibold text-slate-500 mt-0.5">
+                        ${totalBranchCount} producto${totalBranchCount === 1 ? '' : 's'} en total
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <a href="index.html?cat=${encodeURIComponent(parent.slug)}" 
+                     class="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl transition flex-shrink-0">
+                    Ver todo →
+                  </a>
+                </div>
+
+                ${children.length > 0 ? `
+                  <div class="pt-3 border-t border-slate-100">
+                    <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">Subcategorías</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      ${childrenHTML}
+                    </div>
+                  </div>
+                ` : `
+                  <div class="pt-3 border-t border-slate-100 text-xs text-slate-400 italic">
+                    Sin subcategorías específicas
+                  </div>
+                `}
+              </div>
+            </div>`;
+        }).join('');
+
+      } catch (err) {
+        console.error('[Categorias] Error cargando árbol:', err);
+        container.innerHTML = '<p class="col-span-full text-center text-rose-500 font-bold">Ocurrió un error al cargar las categorías.</p>';
+      }
+    }
+
+    loadCategoryTree();
+  </script>
+</body>
+</html>

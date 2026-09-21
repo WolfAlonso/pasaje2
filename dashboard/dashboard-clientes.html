@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e3a8a">
+  <link rel="manifest" href="../manifest.json">
+  <link rel="icon" href="../img/favicon.ico">
+  <title>Mis Clientes · Pasaje de los Altos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase.js?v=4"></script>
+  <script src="../js/theme-loader.js?v=4"></script>
+  <script src="../js/dashboard-utils.js?v=4"></script>
+  <script src="../js/dashboard-sidebar.js?v=4"></script>
+  <script src="../js/liquid-glass.js?v=4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    (function () {
+      if (typeof window.dashEscapeHtml === 'undefined') {
+        window.dashEscapeHtml = function (s) {
+          return String(s ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        };
+      }
+      if (typeof window.cleanPhone === 'undefined') {
+        window.cleanPhone = function (raw) { return String(raw || '').replace(/\D/g, ''); };
+      }
+    })();
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--color-secondary, #f8fafc);
+      color: var(--color-text, #1e293b);
+      background-image: var(--bg-image, none);
+      background-size: cover;
+      background-attachment: fixed;
+      background-position: center;
+      min-height: 100vh;
+    }
+
+    .simple-card {
+      background-color: rgba(var(--color-secondary-rgb, 255, 255, 255), var(--glass-opacity, 0.85));
+      backdrop-filter: blur(var(--glass-blur, 16px));
+      -webkit-backdrop-filter: blur(var(--glass-blur, 16px));
+      border: 1px solid rgba(226, 232, 240, var(--glass-border-opacity, 0.8));
+      border-radius: var(--theme-radius, 1rem);
+      color: var(--color-text, #1e293b);
+      box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.05);
+    }
+
+    h1, h2, h3, h4 { color: var(--color-heading, #0f172a); }
+
+    .filter-chip {
+      font-size: 13px; font-weight: 700;
+      padding: 8px 16px; border-radius: 9999px;
+      transition: all .15s; cursor: pointer; border: 1px solid #cbd5e1;
+      background: rgba(255, 255, 255, 0.8); color: #475569;
+    }
+    .filter-chip-active { background: #0f172a; color: white; border-color: #0f172a; }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800">
+
+  <div id="dashboardHeader"></div>
+  <aside id="sidebar-container"></aside>
+
+  <main class="max-w-5xl mx-auto p-4 pb-20">
+    <div id="dashboardTabs"></div>
+
+    <div id="loadingState" class="simple-card p-8 text-center text-slate-500 font-medium">
+      ⏳ Abriendo libreta de clientes...
+    </div>
+
+    <div id="errorState" class="hidden simple-card p-6 border-l-4 border-red-500 mb-4 bg-red-50/80">
+      <p class="text-sm font-bold text-red-700">No se pudieron cargar tus clientes.</p>
+      <p id="errorMsg" class="text-xs text-red-600 mt-1"></p>
+    </div>
+
+    <section id="content" class="hidden space-y-5">
+
+      <!-- Encabezado -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 simple-card p-5 rounded-2xl shadow-sm">
+        <div>
+          <h1 class="text-2xl font-black flex items-center gap-2">
+            📖 Libreta de Clientes
+          </h1>
+          <p class="text-xs text-slate-500 font-medium mt-1">
+            Encuentra los datos de contacto y compras de las personas que te han pedido productos.
+          </p>
+        </div>
+        <button type="button" id="newSaleBtn"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+          <span>➕</span> Registrar nueva venta
+        </button>
+      </div>
+
+      <!-- Resumen -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="simple-card p-4 border-l-4 border-blue-500">
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total de compradores</p>
+          <p id="custTotal" class="text-2xl sm:text-3xl font-black text-slate-900 mt-1">0</p>
+        </div>
+        <div class="simple-card p-4 border-l-4 border-emerald-500">
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Con número de teléfono</p>
+          <p id="custWithPhone" class="text-2xl sm:text-3xl font-black text-slate-900 mt-1">0</p>
+        </div>
+      </div>
+
+      <!-- Buscador y Filtros -->
+      <div class="simple-card p-4 space-y-3">
+        <div class="relative">
+          <input type="text" id="custSearch" placeholder="🔍 Escribe un nombre o teléfono para buscar..."
+            class="w-full pl-4 pr-4 py-3 border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none bg-white/80 text-slate-900">
+        </div>
+
+        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar" id="custFilterChips">
+          <button data-filter="all" class="filter-chip filter-chip-active">Todos</button>
+          <button data-filter="frecuente" class="filter-chip">⭐ Frecuentes</button>
+          <button data-filter="nuevo" class="filter-chip">🆕 Nuevos</button>
+          <button data-filter="inactivo" class="filter-chip">⏸️ Inactivos (+60 días)</button>
+        </div>
+      </div>
+
+      <!-- Lista de Clientes -->
+      <div id="customersList" class="space-y-3">
+        <p class="p-8 text-center text-sm text-slate-500">Cargando lista...</p>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Modal: Ver y Editar Cliente -->
+  <div id="customerModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto border border-slate-200">
+      <div id="customerModalContent" class="p-5 sm:p-6"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Registrar Venta Manual -->
+  <div id="saleModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[60] flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto border border-slate-200">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-black text-slate-900">➕ Anotar Venta Manual</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Registra una venta hecha por teléfono o en persona</p>
+        </div>
+        <button type="button" id="closeSaleModalBtn"
+          class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-9 h-9 rounded-xl font-bold flex items-center justify-center">✕</button>
+      </div>
+
+      <form id="saleForm" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1">¿Qué producto vendiste? *</label>
+          <select id="saleProduct" required
+            class="w-full border border-slate-300 p-3 rounded-xl bg-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500 outline-none">
+            <option value="">Selecciona un producto...</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Cantidad *</label>
+            <input type="number" min="1" step="1" id="saleQuantity" value="1" required
+              class="w-full border border-slate-300 p-3 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Precio unitario (Q) *</label>
+            <input type="number" min="0" step="0.01" id="saleUnitPrice" value="0" required
+              class="w-full border border-slate-300 p-3 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+          </div>
+        </div>
+
+        <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 flex items-center justify-between">
+          <span class="text-xs font-bold text-emerald-800 uppercase">Cobro Total:</span>
+          <input type="text" id="saleTotal" value="Q 0.00" readonly
+            class="bg-transparent text-right text-lg font-black text-emerald-700 outline-none">
+        </div>
+
+        <hr class="border-slate-200">
+
+        <p class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">👤 Datos del Comprador (Opcional)</p>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nombre completo</label>
+          <input type="text" id="saleCustomerName" placeholder="Ej. María López"
+            class="w-full border border-slate-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Número de WhatsApp / Teléfono</label>
+          <input type="tel" id="saleCustomerPhone" placeholder="Ej. 55123456" maxlength="12"
+            class="w-full border border-slate-300 p-3 rounded-xl text-sm font-mono focus:ring-2 focus:ring-emerald-500 outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Dirección de entrega</label>
+          <input type="text" id="saleCustomerAddress" placeholder="Ej. Zona 1, Quetzaltenango"
+            class="w-full border border-slate-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="cancelSaleBtn"
+            class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl text-sm transition">
+            Cancelar
+          </button>
+          <button type="submit" id="submitSaleBtn"
+            class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md transition">
+            Guardar Venta
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = window.dashEscapeHtml;
+
+    let currentStore = null;
+    let allCustomers = [];
+    let allCustomerProfiles = {};
+    let allProducts = [];
+    let currentTagFilter = 'all';
+
+    const modal = $('customerModal');
+    const saleModal = $('saleModal');
+
+    (async () => {
+      try {
+        const { session, store, stores } = await guardDashboardPage();
+        if (!session || !store) return;
+        currentStore = store;
+
+        await initDashboardNav({ user: session.user, store, stores });
+
+        $('loadingState').classList.add('hidden');
+        $('content').classList.remove('hidden');
+
+        await Promise.all([ loadCustomers(), loadProducts() ]);
+
+        $('custSearch').addEventListener('input', renderCustomers);
+
+        $('custFilterChips').addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-filter]');
+          if (!btn) return;
+          document.querySelectorAll('#custFilterChips .filter-chip').forEach(b => {
+            b.classList.remove('filter-chip-active');
+          });
+          btn.classList.add('filter-chip-active');
+          currentTagFilter = btn.dataset.filter;
+          renderCustomers();
+        });
+
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+        });
+
+        $('newSaleBtn').addEventListener('click', openSaleModal);
+        $('closeSaleModalBtn').addEventListener('click', closeSaleModal);
+        $('cancelSaleBtn').addEventListener('click', closeSaleModal);
+        saleModal.addEventListener('click', (e) => { if (e.target === saleModal) closeSaleModal(); });
+
+        $('saleProduct').addEventListener('change', (e) => {
+          const p = allProducts.find(x => String(x.id) === e.target.value);
+          if (p) $('saleUnitPrice').value = parseFloat(p.price).toFixed(2);
+          updateSaleTotal();
+        });
+
+        $('saleQuantity').addEventListener('input', updateSaleTotal);
+        $('saleUnitPrice').addEventListener('input', updateSaleTotal);
+        $('saleForm').addEventListener('submit', handleSaleSubmit);
+
+      } catch (err) {
+        console.error('[Clientes] init:', err);
+        $('loadingState').classList.add('hidden');
+        $('errorState').classList.remove('hidden');
+        $('errorMsg').textContent = err?.message || 'Error desconocido';
+      }
+    })();
+
+    function closeModal() {
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+      $('customerModalContent').innerHTML = '';
+    }
+
+    function openSaleModal() {
+      $('saleForm').reset();
+      $('saleQuantity').value = 1;
+      $('saleUnitPrice').value = 0;
+      $('saleTotal').value = 'Q 0.00';
+
+      const sel = $('saleProduct');
+      sel.innerHTML = '<option value="">Selecciona un producto...</option>' +
+        allProducts.map(p => `<option value="${p.id}">${esc(p.title)} — Q ${parseFloat(p.price).toFixed(2)}</option>`).join('');
+
+      saleModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSaleModal() {
+      saleModal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    function updateSaleTotal() {
+      const q = parseFloat($('saleQuantity').value) || 0;
+      const u = parseFloat($('saleUnitPrice').value) || 0;
+      $('saleTotal').value = 'Q ' + (q * u).toFixed(2);
+    }
+
+    async function loadProducts() {
+      const { data } = await _supabase
+        .from('products')
+        .select('id, title, price, is_active')
+        .eq('store_id', currentStore.id)
+        .eq('is_active', true)
+        .order('title', { ascending: true });
+
+      allProducts = (data || []).map(p => ({ ...p, price: parseFloat(p.price) || 0 }));
+    }
+
+    async function handleSaleSubmit(e) {
+      e.preventDefault();
+      const btn = $('submitSaleBtn');
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+
+      try {
+        const productId = $('saleProduct').value;
+        const product = allProducts.find(p => String(p.id) === productId);
+        if (!product) throw new Error('Por favor selecciona un producto.');
+
+        const quantity = Math.max(1, parseInt($('saleQuantity').value, 10) || 1);
+        const unitPrice = Math.max(0, parseFloat($('saleUnitPrice').value) || 0);
+
+        const customerName = $('saleCustomerName').value.trim() || null;
+        const rawPhone = $('saleCustomerPhone').value.trim();
+        const customerPhone = rawPhone ? cleanPhone(rawPhone) : null;
+        const customerAddress = $('saleCustomerAddress').value.trim() || null;
+
+        const payload = {
+          store_id: currentStore.id,
+          product_id: product.id,
+          product_title: product.title,
+          quantity: quantity,
+          total_revenue: quantity * unitPrice,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_address: customerAddress,
+          created_at: new Date().toISOString()
+        };
+
+        const { error } = await _supabase.from('sales_log').insert([payload]);
+        if (error) throw error;
+
+        closeSaleModal();
+        await loadCustomers();
+
+        alert('✅ Venta registrada correctamente.');
+
+      } catch (err) {
+        alert('Error al guardar la venta: ' + (err.message || 'Error de conexión'));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar Venta';
+      }
+    }
+
+    async function loadCustomers() {
+      const container = $('customersList');
+      container.innerHTML = '<p class="p-8 text-center text-sm text-slate-500">Cargando tus clientes...</p>';
+
+      const { data, error } = await _supabase
+        .from('sales_log')
+        .select(`
+          id, quantity, total_revenue, created_at,
+          customer_name, customer_phone, customer_address,
+          products ( title )
+        `)
+        .eq('store_id', currentStore.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        container.innerHTML = `<p class="p-8 text-center text-sm text-red-500">Error: ${esc(error.message)}</p>`;
+        return;
+      }
+
+      try {
+        const res = await _supabase.from('customer_profiles').select('*').eq('store_id', currentStore.id);
+        (res.data || []).forEach(p => { allCustomerProfiles[p.customer_key] = p; });
+      } catch (e) { console.warn('customer_profiles no disponible'); }
+
+      const withCustomer = (data || []).filter(s => s.customer_phone || s.customer_name);
+      const map = new Map();
+
+      withCustomer.forEach(s => {
+        const key = s.customer_phone ? cleanPhone(s.customer_phone) : `name:${s.customer_name}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            key,
+            name: s.customer_name || null,
+            phone: s.customer_phone ? cleanPhone(s.customer_phone) : null,
+            address: s.customer_address || null,
+            purchases: [],
+            totalSpent: 0,
+            lastPurchase: s.created_at
+          });
+        }
+        const c = map.get(key);
+        if (!c.name && s.customer_name) c.name = s.customer_name;
+        if (!c.address && s.customer_address) c.address = s.customer_address;
+
+        c.purchases.push(s);
+        c.totalSpent += parseFloat(s.total_revenue || 0);
+
+        if (new Date(s.created_at) > new Date(c.lastPurchase)) c.lastPurchase = s.created_at;
+      });
+
+      allCustomers = Array.from(map.values());
+
+      $('custTotal').textContent = allCustomers.length;
+      $('custWithPhone').textContent = allCustomers.filter(c => c.phone).length;
+
+      renderCustomers();
+    }
+
+    function renderCustomers() {
+      const container = $('customersList');
+      const term = $('custSearch').value.toLowerCase().trim();
+
+      let list = allCustomers.filter(c => {
+        const days = Math.floor((Date.now() - new Date(c.lastPurchase).getTime()) / 86400000);
+        if (currentTagFilter === 'frecuente' && c.purchases.length < 2) return false;
+        if (currentTagFilter === 'nuevo' && c.purchases.length > 1) return false;
+        if (currentTagFilter === 'inactivo' && days < 60) return false;
+
+        if (!term) return true;
+        return (c.name || '').toLowerCase().includes(term) || (c.phone || '').includes(term);
+      });
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="simple-card p-10 text-center">
+            <div class="text-4xl mb-2">🔎</div>
+            <p class="text-sm font-bold text-slate-700">No se encontraron clientes</p>
+            <p class="text-xs text-slate-500 mt-1">Intenta con otro nombre o usa el botón "Registrar nueva venta".</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(c => {
+        const initial = (c.name || 'C').charAt(0).toUpperCase();
+        const days = Math.floor((Date.now() - new Date(c.lastPurchase).getTime()) / 86400000);
+        const lastText = days === 0 ? 'hoy' : days === 1 ? 'ayer' : `hace ${days} días`;
+        const waLink = c.phone ? `https://wa.me/${c.phone}` : null;
+        const profile = allCustomerProfiles[c.key];
+
+        const isFrequent = c.purchases.length >= 2;
+
+        return `
+          <div class="simple-card p-4 hover:border-slate-300 transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer"
+               data-customer="${encodeURIComponent(c.key)}">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-lg flex-shrink-0">
+                ${initial}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <h4 class="font-extrabold text-slate-900 truncate text-base">
+                    ${c.name ? esc(c.name) : 'Cliente sin nombre'}
+                  </h4>
+                  ${isFrequent ? '<span class="text-[11px] bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full">⭐ Frecuente</span>' : ''}
+                  ${profile?.private_note ? '📝' : ''}
+                </div>
+                <p class="text-xs text-slate-500 font-medium mt-0.5">
+                  <span class="font-bold text-emerald-600">Q ${c.totalSpent.toFixed(2)} comprados</span>
+                  · ${c.purchases.length} pedido${c.purchases.length === 1 ? '' : 's'}
+                  · Última compra ${lastText}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto" onclick="event.stopPropagation()">
+              ${waLink ? `
+                <a href="${waLink}" target="_blank" rel="noopener opacity"
+                   class="flex-1 sm:flex-none bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+                  💬 WhatsApp
+                </a>` : ''}
+              <button type="button"
+                class="flex-1 sm:flex-none bg-slate-100/80 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition"
+                onclick="openCustomerDetail('${encodeURIComponent(c.key)}')">
+                Ver Ficha
+              </button>
+            </div>
+          </div>`;
+      }).join('');
+
+      container.querySelectorAll('[data-customer]').forEach(el => {
+        el.addEventListener('click', () => openCustomerDetail(decodeURIComponent(el.dataset.customer)));
+      });
+    }
+
+    function openCustomerDetail(key) {
+      const c = allCustomers.find(x => x.key === key);
+      if (!c) return;
+
+      const waLink = c.phone ? `https://wa.me/${c.phone}` : null;
+      const profile = allCustomerProfiles[key] || {};
+
+      const purchasesHTML = c.purchases.map(s => `
+        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+          <div>
+            <p class="font-bold text-slate-800">${esc(s.products?.title || 'Producto')}</p>
+            <p class="text-slate-400 mt-0.5">${new Date(s.created_at).toLocaleDateString('es-GT')}</p>
+          </div>
+          <span class="font-black text-emerald-600 text-sm">Q ${parseFloat(s.total_revenue).toFixed(2)}</span>
+        </div>
+      `).join('');
+
+      $('customerModalContent').innerHTML = `
+        <div class="flex items-center justify-between border-b pb-3 mb-4">
+          <div>
+            <h3 class="text-xl font-black text-slate-900">${c.name ? esc(c.name) : 'Cliente'}</h3>
+            <p class="text-xs text-slate-500 font-medium">${c.phone ? '📱 ' + esc(c.phone) : 'Sin teléfono'}</p>
+          </div>
+          <button id="closeCustomerModalBtn" class="bg-slate-100 text-slate-700 font-bold w-8 h-8 rounded-xl">✕</button>
+        </div>
+
+        ${waLink ? `
+          <a href="${waLink}" target="_blank" rel="noopener"
+             class="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-sm py-3 rounded-xl transition flex items-center justify-center gap-2 mb-4 shadow-md">
+            💬 Escribir mensaje por WhatsApp
+          </a>` : ''}
+
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+          <label class="block text-xs font-black text-amber-900 uppercase tracking-wider mb-1">📝 Nota o recordatorio sobre el cliente</label>
+          <textarea id="customerPrivateNote" rows="2" placeholder="Ej: Prefiere entregas por la tarde. Paga exacto."
+            class="w-full border border-amber-300 p-2.5 rounded-xl text-xs bg-white focus:ring-2 focus:ring-amber-500 outline-none">${esc(profile.private_note || '')}</textarea>
+          <button id="saveCustomerProfileBtn"
+            class="mt-2 w-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2 rounded-xl transition">Guardar Nota</button>
+        </div>
+
+        <div class="space-y-2">
+          <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider">Historial de Compras (${c.purchases.length})</h4>
+          <div class="space-y-2 max-h-48 overflow-y-auto">${purchasesHTML}</div>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      $('closeCustomerModalBtn').addEventListener('click', closeModal);
+
+      $('saveCustomerProfileBtn').addEventListener('click', async () => {
+        const note = $('customerPrivateNote').value.trim() || null;
+        const btn = $('saveCustomerProfileBtn');
+        btn.disabled = true;
+        btn.textContent = 'Guardando...';
+
+        try {
+          const existing = allCustomerProfiles[key];
+          if (existing) {
+            await _supabase.from('customer_profiles').update({ private_note: note }).eq('id', existing.id);
+            existing.private_note = note;
+          } else {
+            const { data } = await _supabase.from('customer_profiles')
+              .insert([{ store_id: currentStore.id, customer_key: key, private_note: note }])
+              .select().single();
+            if (data) allCustomerProfiles[key] = data;
+          }
+          btn.textContent = '✅ Guardado';
+          setTimeout(() => { btn.disabled = false; btn.textContent = 'Guardar Nota'; }, 1000);
+        } catch (e) {
+          alert('No se pudo guardar la nota.');
+          btn.disabled = false;
+          btn.textContent = 'Guardar Nota';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
