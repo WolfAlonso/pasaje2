@@ -1,14 +1,13 @@
 // =============================================================
 // js/stores-render.js
-// Carrusel de tiendas con drag + flechas + Quick View modal.
-// Incluye badges de Zonas de Xela y tipo de local (Físico vs En Línea) + Filtros.
+// Carrusel de tiendas con drag + flechas.
+// Redireccionamiento directo a tienda.html (sin QuickView de tienda).
 // =============================================================
 
 (function () {
   'use strict';
 
   const MOUNT_SELECTOR = '#storesCarousel, [data-stores-render]';
-  const QV_MODAL_ID = 'pasajeStoreQuickView';
   
   let allStores = [];
   let filteredStores = [];
@@ -23,9 +22,6 @@
     'Zona 6', 'Zona 7', 'Zona 8', 'Zona 9', 'Zona 10', 'Zona 11', 'Interurbano'
   ];
 
-  // ---------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------
   function escapeHtml(str) {
     return String(str ?? '')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -39,8 +35,6 @@
   function placeholder() {
     return (typeof window.PLACEHOLDER_IMG !== 'undefined' && window.PLACEHOLDER_IMG) ? window.PLACEHOLDER_IMG : '';
   }
-
-  function cleanPhoneJS(raw) { return String(raw || '').replace(/\D/g, ''); }
 
   function renderStoreBadge(s) {
     const isPhysical = s.has_physical_store !== false;
@@ -57,9 +51,6 @@
     }
   }
 
-  // ---------------------------------------------------------
-  // Estilos
-  // ---------------------------------------------------------
   function injectCarouselStyles() {
     if (document.getElementById('pasajeStoresCarouselStyles')) return;
     const s = document.createElement('style');
@@ -107,9 +98,6 @@
     document.head.appendChild(s);
   }
 
-  // ---------------------------------------------------------
-  // Controles de Filtros por Zona y Tipo
-  // ---------------------------------------------------------
   function injectFilterBar() {
     const track = getMount();
     if (!track) return;
@@ -176,9 +164,6 @@
     render();
   }
 
-  // ---------------------------------------------------------
-  // Carousel UI
-  // ---------------------------------------------------------
   function ensureCarouselUI() {
     const track = getMount();
     if (!track) return null;
@@ -310,9 +295,6 @@
     }, true);
   }
 
-  // ---------------------------------------------------------
-  // Fetch
-  // ---------------------------------------------------------
   async function fetchStores() {
     if (typeof window._supabase === 'undefined') return [];
 
@@ -343,9 +325,6 @@
     }
   }
 
-  // ---------------------------------------------------------
-  // Tarjeta
-  // ---------------------------------------------------------
   function storeCardHTML(s) {
     const ph = placeholder();
     const logo = s.logo_url || ph;
@@ -364,11 +343,12 @@
       : `<div class="w-full h-full bg-gradient-to-br from-blue-900 to-emerald-700"></div>`;
 
     const badgeHTML = renderStoreBadge(s);
+    const targetUrl = s.slug ? `tienda.html?slug=${encodeURIComponent(s.slug)}` : `tienda.html?id=${encodeURIComponent(s.id)}`;
 
     return `
-      <div class="store-carousel-card snap-start flex-shrink-0 w-64 bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col"
-           data-store-id="${escapeHtml(s.id)}" data-store-slug="${escapeHtml(s.slug || '')}"
-           role="button" tabindex="0" aria-label="Ver ${escapeHtml(s.name)}">
+      <a href="${targetUrl}" class="store-carousel-card snap-start flex-shrink-0 w-64 bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col no-underline block"
+         data-store-id="${escapeHtml(s.id)}" data-store-slug="${escapeHtml(s.slug || '')}"
+         aria-label="Ir a tienda ${escapeHtml(s.name)}">
         <div class="aspect-video bg-gray-100 relative overflow-hidden">
           ${coverHTML}
           <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
@@ -391,7 +371,7 @@
             <span>Ver tienda</span><span>→</span>
           </div>
         </div>
-      </div>
+      </a>
     `;
   }
 
@@ -412,153 +392,11 @@
 
     track.innerHTML = filteredStores.map(storeCardHTML).join('');
 
-    track.querySelectorAll('[data-store-id]').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.defaultPrevented) return;
-        e.preventDefault();
-        e.stopPropagation();
-        openQuickView(card.dataset.storeId);
-      });
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openQuickView(card.dataset.storeId);
-        }
-      });
-    });
-
     if (carouselUI) {
       setTimeout(() => updateArrowVisibility(track, carouselUI.prev, carouselUI.next), 50);
     }
   }
 
-  // ---------------------------------------------------------
-  // Quick View modal
-  // ---------------------------------------------------------
-  function ensureQuickViewModal() {
-    if (document.getElementById(QV_MODAL_ID)) return;
-
-    const modal = document.createElement('div');
-    modal.id = QV_MODAL_ID;
-    modal.className = 'hidden fixed inset-0 bg-black/60 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4';
-    modal.innerHTML = `
-      <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto" id="${QV_MODAL_ID}Content"></div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeQuickView();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeQuickView();
-    });
-  }
-
-  function openQuickView(storeId) {
-    const s = allStores.find(x => String(x.id) === String(storeId));
-    if (!s) return;
-    ensureQuickViewModal();
-
-    const ph = placeholder();
-    const logo = s.logo_url || ph;
-    const cover = s.cover_url || s.logo_url || null;
-    const category = s.categories
-      ? `${s.categories.icon || ''} ${s.categories.name || ''}`.trim()
-      : '';
-    const nProd = Array.isArray(s.products) && s.products[0]
-      ? (s.products[0].count ?? 0) : 0;
-    const wa = s.whatsapp
-      ? `https://wa.me/${cleanPhoneJS(s.whatsapp)}?text=${encodeURIComponent('Hola ' + s.name + ', te contacto desde Pasaje de los Altos.')}`
-      : null;
-
-    const coverBg = cover
-      ? `background-image:url('${String(cover).replace(/'/g, "%27")}');background-size:cover;background-position:center;`
-      : '';
-
-    const badgeHTML = renderStoreBadge(s);
-
-    const modal = document.getElementById(QV_MODAL_ID);
-    const box = document.getElementById(`${QV_MODAL_ID}Content`);
-    if (!modal || !box) return;
-
-    box.innerHTML = `
-      <div class="relative">
-        <div class="h-36 sm:h-44 ${cover ? '' : 'bg-gradient-to-br from-blue-900 to-emerald-700'}"
-             style="${coverBg}"></div>
-        <button id="${QV_MODAL_ID}Close" type="button"
-          class="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-700 w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition font-bold">
-          ✕
-        </button>
-      </div>
-
-      <div class="px-5 sm:px-6 pb-6 -mt-14">
-        <div class="flex items-end gap-3 mb-4">
-          <img src="${logo}" alt="${escapeHtml(s.name)}"
-               onerror="this.onerror=null;this.src='${ph}'"
-               class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg bg-white">
-          <div class="min-w-0 flex-1 pb-2">
-            <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-xl sm:text-2xl font-extrabold text-gray-800 truncate">${escapeHtml(s.name)}</h2>
-            </div>
-            <div class="mt-1">
-              ${badgeHTML}
-            </div>
-            ${category ? `<span class="inline-block text-[10px] uppercase tracking-wider font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded mt-1.5">${escapeHtml(category)}</span>` : ''}
-          </div>
-        </div>
-
-        ${s.description ? `<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line mb-4">${escapeHtml(s.description)}</p>` : ''}
-
-        <div class="grid grid-cols-2 gap-2 mb-5">
-          <div class="bg-gray-50 border rounded-lg p-3">
-            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">📦 Productos</p>
-            <p class="text-lg font-extrabold text-gray-800 mt-1">${nProd}</p>
-          </div>
-          <div class="bg-gray-50 border rounded-lg p-3">
-            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">💬 WhatsApp</p>
-            <p class="text-sm font-bold text-emerald-700 mt-1 truncate">${escapeHtml(s.whatsapp || '—')}</p>
-          </div>
-        </div>
-
-        ${(s.address || s.address_details || s.schedule) ? `
-          <div class="space-y-2 mb-5 text-sm bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-            ${s.address_details ? `<p class="text-gray-800 font-semibold">🏢 <span class="font-bold">Dirección:</span> ${escapeHtml(s.address_details)}</p>` : ''}
-            ${s.address ? `<p class="text-gray-700">📍 <span class="font-bold">Ubicación general:</span> ${escapeHtml(s.address)}</p>` : ''}
-            ${s.schedule ? `<p class="text-gray-700 whitespace-pre-line">🕒 <span class="font-bold">Horarios:</span> ${escapeHtml(s.schedule)}</p>` : ''}
-          </div>` : ''}
-
-        <div class="flex flex-col sm:flex-row gap-2">
-          <a href="tienda.html?slug=${encodeURIComponent(s.slug || '')}"
-             class="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow">
-            🏪 Ver tienda completa
-          </a>
-          ${wa ? `
-            <a href="${wa}" target="_blank" rel="noopener noreferrer"
-               class="flex-1 flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 rounded-xl transition shadow">
-              💬 Contactar por WhatsApp
-            </a>` : ''}
-        </div>
-      </div>
-    `;
-
-    modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-
-    const closeBtn = document.getElementById(`${QV_MODAL_ID}Close`);
-    if (closeBtn) closeBtn.addEventListener('click', closeQuickView);
-  }
-
-  function closeQuickView() {
-    const modal = document.getElementById(QV_MODAL_ID);
-    if (!modal) return;
-    modal.classList.add('hidden');
-    document.body.style.overflow = '';
-  }
-
-  // ---------------------------------------------------------
-  // Init
-  // ---------------------------------------------------------
   async function init(retryCount) {
     retryCount = retryCount || 0;
     const track = getMount();

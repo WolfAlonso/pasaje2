@@ -35,7 +35,7 @@
         <p class="text-xs text-slate-500">Consulta el estado actual de tu compra en tiempo real.</p>
       </div>
 
-      <!-- Buscador por ID si no viene en parámetro -->
+      <!-- Buscador por ID -->
       <div id="searchContainer" class="space-y-3 pt-2">
         <div class="flex gap-2">
           <input type="text" id="orderIdInput" placeholder="Ingresa el ID o UUID de tu pedido..."
@@ -46,7 +46,7 @@
         </div>
       </div>
 
-      <!-- Contenedor de Resultado del Pedido -->
+      <!-- Resultado del Pedido -->
       <div id="orderResultContainer" class="hidden space-y-6 pt-4 border-t border-slate-100">
         
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
@@ -55,47 +55,57 @@
             <p id="resOrderId" class="text-xs font-mono font-bold text-slate-700 break-all">—</p>
           </div>
           <div class="text-left sm:text-right">
-            <p class="text-[10px] font-bold text-slate-400 uppercase">Fecha de Creación</p>
-            <p id="resOrderDate" class="text-xs font-bold text-slate-700">—</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Última Actualización</p>
+            <p id="resOrderUpdated" class="text-xs font-bold text-emerald-600">—</p>
           </div>
         </div>
 
+        <!-- Banner especial para pedidos Cancelados o Rechazados -->
+        <div id="cancelledBanner" class="hidden p-4 bg-rose-50 border border-rose-200 rounded-2xl text-center space-y-1">
+          <p id="cancelledTitle" class="text-sm font-black text-rose-800">🔴 Pedido Cancelado</p>
+          <p id="cancelledDesc" class="text-xs text-rose-600 font-semibold">Este pedido ha sido cancelado o rechazado. Comunícate con la tienda si tienes dudas.</p>
+        </div>
+
         <!-- STEPPER UI (LÍNEA DE TIEMPO GRÁFICA) -->
-        <div class="space-y-3">
+        <div id="stepperContainer" class="space-y-3">
           <h3 class="text-xs font-black text-slate-700 uppercase tracking-wider">Estado del Envío</h3>
           
           <div class="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
             
-            <!-- Paso 1: Pendiente -->
-            <div id="step-pending" class="relative flex items-center gap-3 opacity-40 transition-all">
+            <div id="step-sent" class="relative flex items-center gap-3 opacity-40 transition-all">
               <div class="absolute -left-6 w-5 h-5 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white step-icon">1</div>
               <div>
-                <p class="text-xs font-extrabold text-slate-900">🟡 Pedido Pendiente / Recibido</p>
+                <p class="text-xs font-extrabold text-slate-900">🟡 Pedido Recibido</p>
                 <p class="text-[11px] text-slate-500">La tienda ha recibido tu solicitud de compra.</p>
               </div>
             </div>
 
-            <!-- Paso 2: En Preparación -->
-            <div id="step-preparing" class="relative flex items-center gap-3 opacity-40 transition-all">
+            <div id="step-confirmed" class="relative flex items-center gap-3 opacity-40 transition-all">
               <div class="absolute -left-6 w-5 h-5 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white step-icon">2</div>
+              <div>
+                <p class="text-xs font-extrabold text-slate-900">🔵 Confirmado</p>
+                <p class="text-[11px] text-slate-500">La tienda ha confirmado las existencias de tu compra.</p>
+              </div>
+            </div>
+
+            <div id="step-preparing" class="relative flex items-center gap-3 opacity-40 transition-all">
+              <div class="absolute -left-6 w-5 h-5 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white step-icon">3</div>
               <div>
                 <p class="text-xs font-extrabold text-slate-900">🟠 En Preparación</p>
                 <p class="text-[11px] text-slate-500">Tu pedido está siendo empacado y preparado.</p>
               </div>
             </div>
 
-            <!-- Paso 3: Listo / En Camino -->
-            <div id="step-ready" class="relative flex items-center gap-3 opacity-40 transition-all">
-              <div class="absolute -left-6 w-5 h-5 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white step-icon">3</div>
+            <div id="step-on_the_way" class="relative flex items-center gap-3 opacity-40 transition-all">
+              <div class="absolute -left-6 w-5 h-5 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white step-icon">4</div>
               <div>
-                <p class="text-xs font-extrabold text-slate-900">🔵 Listo / En Camino</p>
-                <p class="text-[11px] text-slate-500">Tu pedido está listo para recoger o va en camino a tu dirección.</p>
+                <p class="text-xs font-extrabold text-slate-900">🛵 En Camino / Listo para Entregar</p>
+                <p class="text-[11px] text-slate-500">Tu pedido va en ruta hacia tu dirección o está listo en tienda.</p>
               </div>
             </div>
 
-            <!-- Paso 4: Entregado -->
-            <div id="step-delivered" class="relative flex items-center gap-3 opacity-40 transition-all">
-              <div class="absolute -left-6 w-5 h-5 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white step-icon">4</div>
+            <div id="step-completed" class="relative flex items-center gap-3 opacity-40 transition-all">
+              <div class="absolute -left-6 w-5 h-5 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white step-icon">5</div>
               <div>
                 <p class="text-xs font-extrabold text-slate-900">🟢 Entregado con Éxito</p>
                 <p class="text-[11px] text-slate-500">El pedido ha sido completado y entregado.</p>
@@ -167,7 +177,9 @@
       }
 
       document.getElementById('resOrderId').textContent = data.id;
-      document.getElementById('resOrderDate').textContent = new Date(data.created_at).toLocaleString('es-GT');
+      
+      const updatedDate = data.status_updated_at ? new Date(data.status_updated_at) : new Date(data.created_at);
+      document.getElementById('resOrderUpdated').textContent = updatedDate.toLocaleString('es-GT', { dateStyle: 'short', timeStyle: 'short' });
       document.getElementById('resOrderTotal').textContent = `Q ${parseFloat(data.total || 0).toFixed(2)}`;
 
       const items = Array.isArray(data.items) ? data.items : [];
@@ -176,6 +188,7 @@
           <div>
             <span class="font-extrabold text-slate-800">${it.quantity}x</span> 
             <span class="font-semibold text-slate-700">${escapeHtml(it.title || 'Producto')}</span>
+            ${it.selectedVariant ? `<span class="text-[10px] text-slate-400"> (${escapeHtml(it.selectedVariant)})</span>` : ''}
           </div>
           <span class="font-bold text-slate-900">Q ${((parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1)).toFixed(2)}</span>
         </div>
@@ -186,29 +199,53 @@
     }
 
     function updateStepper(status) {
-      // Normalizar estados (compatible con sent, contacted, completed o pending, preparing, ready, delivered)
-      const normalized = (status || 'pending').toLowerCase();
-      
-      const steps = ['pending', 'preparing', 'ready', 'delivered'];
+      const normalized = (status || 'sent').toLowerCase();
+      const stepperContainer = document.getElementById('stepperContainer');
+      const cancelledBanner = document.getElementById('cancelledBanner');
+
+      if (normalized === 'cancelled' || normalized === 'rejected') {
+        stepperContainer.classList.add('hidden');
+        cancelledBanner.classList.remove('hidden');
+        
+        if (normalized === 'rejected') {
+          document.getElementById('cancelledTitle').textContent = '❌ Pedido Rechazado';
+          document.getElementById('cancelledDesc').textContent = 'La tienda no pudo procesar tu pedido debido a falta de disponibilidad o inventario.';
+        } else {
+          document.getElementById('cancelledTitle').textContent = '🔴 Pedido Cancelado';
+          document.getElementById('cancelledDesc').textContent = 'El pedido fue cancelado a solicitud del cliente.';
+        }
+        return;
+      }
+
+      stepperContainer.classList.remove('hidden');
+      cancelledBanner.classList.add('hidden');
+
+      const steps = ['sent', 'confirmed', 'preparing', 'on_the_way', 'completed'];
       let activeIndex = 0;
 
       if (normalized === 'sent' || normalized === 'pending') activeIndex = 0;
-      else if (normalized === 'contacted' || normalized === 'preparing') activeIndex = 1;
-      else if (normalized === 'ready' || normalized === 'on_the_way') activeIndex = 2;
-      else if (normalized === 'completed' || normalized === 'delivered') activeIndex = 3;
+      else if (normalized === 'confirmed') activeIndex = 1;
+      else if (normalized === 'preparing' || normalized === 'contacted') activeIndex = 2;
+      else if (normalized === 'on_the_way' || normalized === 'ready') activeIndex = 3;
+      else if (normalized === 'completed' || normalized === 'delivered') activeIndex = 4;
 
       steps.forEach((step, idx) => {
         const el = document.getElementById(`step-${step}`);
+        if (!el) return;
         const icon = el.querySelector('.step-icon');
         
         if (idx <= activeIndex) {
           el.style.opacity = '1';
-          icon.style.backgroundColor = '#10b981'; // emerald-500
-          icon.textContent = '✓';
+          if (icon) {
+            icon.style.backgroundColor = '#10b981';
+            icon.textContent = '✓';
+          }
         } else {
           el.style.opacity = '0.4';
-          icon.style.backgroundColor = '#cbd5e1'; // slate-300
-          icon.textContent = idx + 1;
+          if (icon) {
+            icon.style.backgroundColor = '#cbd5e1';
+            icon.textContent = idx + 1;
+          }
         }
       });
     }

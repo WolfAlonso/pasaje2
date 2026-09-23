@@ -22,9 +22,9 @@
   <script src="js/liquid-glass.js?v=4"></script>
 
   <!-- MÓDULOS DE SERVICIO Y RENDERIZADO -->
-  <script src="js/services/products-service.js?v=4"></script>
-  <script src="js/ui/product-card.js?v=3"></script>
-  <script src="js/stores-render.js?v=6"></script>
+  <script src="js/services/products-service.js?v=5"></script>
+  <script src="js/ui/product-card.js?v=5"></script>
+  <script src="js/stores-render.js?v=8"></script>
 
   <style>
     body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
@@ -94,7 +94,6 @@
           <p class="text-xs font-semibold text-slate-500">Explora el catálogo disponible para pedido directo por WhatsApp.</p>
         </div>
 
-        <!-- Buscador interno de productos -->
         <div class="w-full sm:w-72">
           <input id="storeSearchInput" type="text" placeholder="Buscar en esta tienda..."
             class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm">
@@ -116,7 +115,7 @@
       </div>
     </section>
 
-    <!-- 4. SECCIÓN DE EXPLORACIÓN DE OTRAS TIENDAS (REUTILIZA STORES-RENDER) -->
+    <!-- 4. SECCIÓN DE EXPLORACIÓN DE OTRAS TIENDAS -->
     <section id="otherStoresSection" class="mb-8 pt-6 border-t border-slate-200/80">
       <div class="flex items-center justify-between mb-3">
         <div>
@@ -127,7 +126,6 @@
         </div>
       </div>
 
-      <!-- Carrusel y Filtros por Zona -->
       <div id="storesCarousel" class="flex gap-4 overflow-x-auto pb-3 no-scrollbar snap-x snap-mandatory"></div>
     </section>
 
@@ -135,10 +133,13 @@
 
   <div id="pasajeFooter"></div>
 
-  <!-- MODAL QUICK VIEW DE PRODUCTO -->
-  <div id="productModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
-      <div id="productModalContent"></div>
+  <!-- MODAL QUICK VIEW DE PRODUCTO (REESTRUCTURADO SIN RECORTE) -->
+  <div id="productModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
+    <div class="relative w-full max-w-2xl">
+      <div id="modalProductNavWrapper"></div>
+      <div class="bg-white rounded-3xl shadow-2xl max-h-[88vh] overflow-y-auto">
+        <div id="productModalContent"></div>
+      </div>
     </div>
   </div>
 
@@ -146,6 +147,14 @@
     let currentStore = null;
     let storeProducts = [];
     const loadedProductsMap = new Map();
+
+    let activeModalProducts = [];
+    let activeProductIndex = -1;
+    let activeGalleryIndex = 0;
+
+    const productModal = document.getElementById('productModal');
+    const productModalContent = document.getElementById('productModalContent');
+    const modalProductNavWrapper = document.getElementById('modalProductNavWrapper');
 
     document.getElementById('sidebarToggleBtn')?.addEventListener('click', () => {
       if (typeof window.togglePublicSidebar === 'function') window.togglePublicSidebar();
@@ -156,17 +165,18 @@
     async function loadStoreData() {
       const urlParams = new URLSearchParams(window.location.search);
       const slug = urlParams.get('slug');
+      const id = urlParams.get('id');
 
-      if (!slug || typeof _supabase === 'undefined') {
+      if ((!slug && !id) || typeof _supabase === 'undefined') {
         document.getElementById('storeProductsContainer').innerHTML = '<p class="col-span-full text-center text-rose-600 py-12 font-bold">Tienda no encontrada.</p>';
         return;
       }
 
-      const { data: store, error } = await _supabase
-        .from('stores')
-        .select('*')
-        .eq('slug', slug)
-        .maybeSingle();
+      let query = _supabase.from('stores').select('*');
+      if (slug) query = query.eq('slug', slug);
+      else if (id) query = query.eq('id', id);
+
+      const { data: store, error } = await query.maybeSingle();
 
       if (error || !store) {
         document.getElementById('storeProductsContainer').innerHTML = '<p class="col-span-full text-center text-rose-600 py-12 font-bold">Tienda no disponible.</p>';
@@ -175,7 +185,6 @@
 
       currentStore = store;
 
-      // BADGES DE ZONA Y TIPO DE LOCAL
       const isPhysical = store.has_physical_store !== false;
       const zoneBadge = isPhysical
         ? `<span class="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-extrabold px-3 py-1 rounded-full shadow-sm">📍 Local Físico - ${store.zone || 'Zona 1'}</span>`
@@ -214,7 +223,6 @@
 
               ${store.description ? `<p class="text-xs sm:text-sm text-slate-600 mt-3 leading-relaxed">${store.description}</p>` : ''}
 
-              <!-- Botones de Acción Directa -->
               <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-4 pt-3 border-t border-slate-200/60">
                 ${waUrl ? `
                   <a href="${waUrl}" target="_blank" rel="noopener noreferrer"
@@ -233,13 +241,14 @@
         </div>
       `;
 
-      // CARGAR PRODUCTOS DE LA TIENDA
       const { data: products } = await _supabase
         .from('products')
         .select(`
           *,
           stores ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
-          categories ( id, name, slug, icon )
+          categories ( id, name, slug, icon ),
+          product_images ( id, image_url, sort_order ),
+          product_variants ( id, variant_group, name, price_adjustment, stock_quantity )
         `)
         .eq('store_id', store.id)
         .eq('is_active', true)
@@ -250,14 +259,12 @@
 
       renderStoreProducts(storeProducts);
 
-      // BUSCADOR INTERNO DE PRODUCTOS
       document.getElementById('storeSearchInput')?.addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase().trim();
         const filtered = storeProducts.filter(p => (p.title || '').toLowerCase().includes(term));
         renderStoreProducts(filtered);
       });
 
-      // CARGAR RESEÑAS DE LA TIENDA
       const reviews = await ProductsService.fetchStoreReviews(store.id);
       const reviewsContainer = document.getElementById('storeReviewsContainer');
       if (reviews.length === 0) {
@@ -286,27 +293,180 @@
       container.innerHTML = list.map(p => ProductCardUI.render(p)).join('');
     }
 
-    // CLICK EN TARJETAS PARA ABRIR QUICK VIEW
     document.getElementById('storeProductsContainer')?.addEventListener('click', (e) => {
       const card = e.target.closest('.product-card');
       if (!card || e.target.closest('.no-click')) return;
 
       const pid = card.dataset.productId;
       const product = loadedProductsMap.get(String(pid));
-      if (product) openQuickView(product);
+      if (product) openQuickView(product, storeProducts);
     });
 
-    function openQuickView(p) {
-      const modal = document.getElementById('productModal');
-      const box = document.getElementById('productModalContent');
-      
-      const isOutOfStock = !p.is_active || p.stock_quantity === 0;
-      const galleryHTML = ProductCardUI.renderGalleryHTML(p.images, p.title);
+    // MÁQUINA DE EVENTOS PARA EL MODAL DE LA TIENDA
+    productModal?.addEventListener('click', (e) => {
+      const prevProdBtn = e.target.closest('#modalPrevProductBtn');
+      if (prevProdBtn) {
+        navigateModalProduct(-1);
+        return;
+      }
 
-      box.innerHTML = `
+      const nextProdBtn = e.target.closest('#modalNextProductBtn');
+      if (nextProdBtn) {
+        navigateModalProduct(1);
+        return;
+      }
+
+      const p = activeModalProducts[activeProductIndex];
+      if (!p) return;
+
+      const imgs = Array.isArray(p.images) && p.images.length > 0 ? p.images : [window.PLACEHOLDER_IMG];
+
+      const thumbBtn = e.target.closest('[data-gallery-thumb]');
+      if (thumbBtn) {
+        activeGalleryIndex = parseInt(thumbBtn.dataset.galleryIndex || '0', 10);
+        updateModalGalleryView(imgs);
+        return;
+      }
+
+      const prevImgBtn = e.target.closest('[data-gallery-nav="prev"]');
+      if (prevImgBtn) {
+        activeGalleryIndex = (activeGalleryIndex - 1 + imgs.length) % imgs.length;
+        updateModalGalleryView(imgs);
+        return;
+      }
+
+      const nextImgBtn = e.target.closest('[data-gallery-nav="next"]');
+      if (nextImgBtn) {
+        activeGalleryIndex = (activeGalleryIndex + 1) % imgs.length;
+        updateModalGalleryView(imgs);
+        return;
+      }
+    });
+
+    function updateModalGalleryView(imgs) {
+      const url = imgs[activeGalleryIndex];
+      const mainImg = productModalContent.querySelector('#mainGalleryViewer');
+      const idxBadge = productModalContent.querySelector('#galleryCurrentIdx');
+
+      if (mainImg && url) {
+        mainImg.src = url;
+        if (idxBadge) idxBadge.textContent = activeGalleryIndex + 1;
+
+        productModalContent.querySelectorAll('.gallery-thumb').forEach((b, idx) => {
+          if (idx === activeGalleryIndex) {
+            b.classList.remove('border-transparent', 'opacity-70', 'hover:opacity-100');
+            b.classList.add('border-emerald-500', 'scale-95', 'shadow-sm');
+          } else {
+            b.classList.remove('border-emerald-500', 'scale-95', 'shadow-sm');
+            b.classList.add('border-transparent', 'opacity-70', 'hover:opacity-100');
+          }
+        });
+      }
+    }
+
+    function navigateModalProduct(dir) {
+      if (!activeModalProducts || activeModalProducts.length === 0) return;
+      const nextIdx = activeProductIndex + dir;
+      if (nextIdx >= 0 && nextIdx < activeModalProducts.length) {
+        openQuickView(activeModalProducts[nextIdx], activeModalProducts, nextIdx);
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const isModalOpen = productModal && !productModal.classList.contains('hidden');
+
+      if (e.key === 'Escape') {
+        if (isModalOpen) {
+          productModal.classList.add('hidden');
+          document.body.style.overflow = '';
+        }
+        if (window.PasajeCart && typeof window.PasajeCart.closeDrawer === 'function') {
+          window.PasajeCart.closeDrawer();
+        }
+        return;
+      }
+
+      if (!isModalOpen) return;
+
+      const p = activeModalProducts[activeProductIndex];
+      const imgs = (p && Array.isArray(p.images) && p.images.length > 0) ? p.images : [window.PLACEHOLDER_IMG];
+
+      if (e.key === 'ArrowUp' || (e.altKey && e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        navigateModalProduct(-1);
+        return;
+      }
+
+      if (e.key === 'ArrowDown' || (e.altKey && e.key === 'ArrowRight')) {
+        e.preventDefault();
+        navigateModalProduct(1);
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (imgs.length > 1) {
+          activeGalleryIndex = (activeGalleryIndex - 1 + imgs.length) % imgs.length;
+          updateModalGalleryView(imgs);
+        } else {
+          navigateModalProduct(-1);
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (imgs.length > 1) {
+          activeGalleryIndex = (activeGalleryIndex + 1) % imgs.length;
+          updateModalGalleryView(imgs);
+        } else {
+          navigateModalProduct(1);
+        }
+        return;
+      }
+    });
+
+    function openQuickView(p, list = null, index = -1) {
+      if (list && Array.isArray(list) && list.length > 0) {
+        activeModalProducts = list;
+        activeProductIndex = index >= 0 ? index : list.findIndex(x => String(x.id) === String(p.id));
+      } else {
+        activeModalProducts = storeProducts;
+        activeProductIndex = activeModalProducts.findIndex(x => String(x.id) === String(p.id));
+      }
+
+      if (activeProductIndex === -1) {
+        activeModalProducts.push(p);
+        activeProductIndex = activeModalProducts.length - 1;
+      }
+
+      activeGalleryIndex = 0;
+
+      const hasPrevProduct = activeProductIndex > 0;
+      const hasNextProduct = activeProductIndex < activeModalProducts.length - 1;
+
+      if (modalProductNavWrapper) {
+        modalProductNavWrapper.innerHTML = `
+          ${hasPrevProduct ? `
+            <button type="button" id="modalPrevProductBtn"
+              class="absolute -left-3 sm:-left-12 top-1/2 -translate-y-1/2 z-50 bg-white hover:bg-slate-100 text-slate-900 w-11 h-11 rounded-full shadow-2xl border border-slate-200 flex items-center justify-center font-black text-2xl transition transform hover:scale-110 active:scale-95"
+              title="Producto Anterior (Alt + ← / ↑)">‹</button>` : ''}
+
+          ${hasNextProduct ? `
+            <button type="button" id="modalNextProductBtn"
+              class="absolute -right-3 sm:-right-12 top-1/2 -translate-y-1/2 z-50 bg-white hover:bg-slate-100 text-slate-900 w-11 h-11 rounded-full shadow-2xl border border-slate-200 flex items-center justify-center font-black text-2xl transition transform hover:scale-110 active:scale-95"
+              title="Producto Siguiente (Alt + → / ↓)">›</button>` : ''}
+        `;
+      }
+
+      const isOutOfStock = !p.is_active || p.stock_quantity === 0;
+      const galleryHTML = ProductCardUI.renderGalleryHTML(p.images, p.title, 0);
+      const variantsHTML = ProductCardUI.renderVariantsHTML(p.variants);
+
+      productModalContent.innerHTML = `
         <div class="relative">
           <button id="closeProductModalBtn" type="button"
-            class="absolute top-3 right-3 z-10 bg-white/90 hover:bg-white text-slate-800 w-8 h-8 rounded-full shadow flex items-center justify-center transition text-xs font-bold">✕</button>
+            class="absolute top-3 right-3 z-20 bg-white/90 hover:bg-white text-slate-800 w-8 h-8 rounded-full shadow flex items-center justify-center transition text-xs font-bold">✕</button>
           <div class="p-4 sm:p-5 pb-0">${galleryHTML}</div>
         </div>
 
@@ -317,6 +477,7 @@
           <h2 class="text-lg font-extrabold text-slate-900 mt-1">${ProductCardUI.escapeHtml(p.title)}</h2>
           <p class="text-2xl font-black text-emerald-600 mt-2">Q ${parseFloat(p.price || 0).toFixed(2)}</p>
           ${p.description ? `<p class="text-xs text-slate-600 mt-2 leading-relaxed">${ProductCardUI.escapeHtml(p.description)}</p>` : ''}
+          ${variantsHTML}
 
           <div class="mt-5 space-y-2">
             ${isOutOfStock
@@ -328,11 +489,11 @@
           </div>
         </div>`;
 
-      modal.classList.remove('hidden');
+      productModal.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
 
       document.getElementById('closeProductModalBtn')?.addEventListener('click', () => {
-        modal.classList.add('hidden');
+        productModal.classList.add('hidden');
         document.body.style.overflow = '';
       });
 
@@ -347,7 +508,7 @@
             storeName: p.store_name,
             storeWhatsapp: p.store_whatsapp
           });
-          modal.classList.add('hidden');
+          productModal.classList.add('hidden');
           document.body.style.overflow = '';
         }
       });

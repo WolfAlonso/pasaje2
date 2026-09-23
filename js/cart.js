@@ -1,6 +1,6 @@
 // =============================================================
 // /js/cart.js
-// Gestor de Carrito de Compras (Con Rastreo en Vivo Garantizado)
+// Gestor de Carrito de Compras (Con Rastreo en Vivo Garantizado y WhatsApp)
 // =============================================================
 
 (function () {
@@ -10,16 +10,22 @@
   let cartItems = [];
   let deliveryType = 'pickup';
 
+  // Carga defensiva del carrito desde localStorage
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     cartItems = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(cartItems)) cartItems = [];
   } catch (e) {
+    console.warn('[Cart] Error al leer localStorage, reiniciando carrito:', e);
     cartItems = [];
   }
 
   function saveCart() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems)); } catch (e) {}
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems));
+    } catch (e) {
+      console.error('[Cart] Error guardando en localStorage:', e);
+    }
     updateCartBadge();
   }
 
@@ -98,10 +104,13 @@
                 <button type="button" id="deliveryTabDelivery" class="delivery-type-btn text-xs font-bold py-2 px-3 rounded-xl border flex items-center justify-center gap-1.5 transition bg-white text-slate-700 border-slate-200 hover:border-emerald-500"><span>🛵 Envío a domicilio</span></button>
               </div>
             </div>
-            <div id="deliveryFieldsContainer" class="hidden space-y-2 pt-1">
+            <div class="space-y-2 pt-1">
               <input type="text" id="cartCustomerName" placeholder="Tu nombre completo *" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white text-slate-800 outline-none font-semibold">
-              <input type="text" id="cartDeliveryAddress" placeholder="Dirección de entrega (Calle, No. Casa, Zona) *" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white text-slate-800 outline-none font-semibold">
-              <input type="text" id="cartDeliveryRef" placeholder="Referencia / Municipio (opcional)" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white text-slate-800 outline-none font-semibold">
+              <input type="tel" id="cartCustomerPhone" placeholder="Tu número de teléfono / WhatsApp *" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white text-slate-800 outline-none font-semibold">
+              <div id="deliveryFieldsContainer" class="hidden space-y-2">
+                <input type="text" id="cartDeliveryAddress" placeholder="Dirección de entrega (Calle, No. Casa, Zona) *" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white text-slate-800 outline-none font-semibold">
+                <input type="text" id="cartDeliveryRef" placeholder="Referencia / Municipio (opcional)" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white text-slate-800 outline-none font-semibold">
+              </div>
             </div>
             <div class="flex items-center justify-between pt-2">
               <span class="text-xs font-bold text-slate-500 uppercase">Total a pagar:</span>
@@ -200,32 +209,55 @@
 
     if (!phone) { alert('No se pudo determinar el WhatsApp de la tienda.'); return; }
 
-    let customerName = document.getElementById('cartCustomerName')?.value.trim() || 'Cliente';
+    let customerName = document.getElementById('cartCustomerName')?.value.trim() || '';
+    let customerPhone = document.getElementById('cartCustomerPhone')?.value.trim() || '';
     let address = document.getElementById('cartDeliveryAddress')?.value.trim() || '';
     let reference = document.getElementById('cartDeliveryRef')?.value.trim() || '';
 
+    if (!customerName) { alert('Por favor ingresa tu nombre completo.'); return; }
+    if (!customerPhone) { alert('Por favor ingresa tu número de teléfono / WhatsApp.'); return; }
     if (deliveryType === 'delivery' && !address) { alert('Por favor ingresa la dirección para el envío.'); return; }
 
     let total = cartItems.reduce((sum, i) => sum + ((parseFloat(i.price) || 0) * (parseInt(i.quantity, 10) || 1)), 0);
+    let totalItemCount = cartItems.reduce((sum, i) => sum + (parseInt(i.quantity, 10) || 1), 0);
 
     let orderUuid = null;
+    const nowIso = new Date().toISOString();
+
     try {
-      if (typeof _supabase !== 'undefined') {
-        const { data, error } = await _supabase.from('cart_orders').insert([{
+      if (typeof window._supabase !== 'undefined') {
+        const { data, error } = await window._supabase.from('cart_orders').insert([{
           store_id: firstStore.storeId || null,
           customer_name: customerName,
-          customer_phone: phone,
+          customer_phone: customerPhone,
           customer_address: deliveryType === 'delivery' ? address : 'Recoger en tienda (Pickup)',
+          delivery_type: deliveryType,
+          delivery_address: deliveryType === 'delivery' ? address : null,
+          delivery_reference: reference || null,
           notes: reference || null,
-          items: cartItems.map(i => ({ id: i.id, title: i.title, price: i.price, quantity: i.quantity, selectedVariant: i.selectedVariant || null })),
+          items: cartItems.map(i => ({
+            id: i.id,
+            title: i.title,
+            price: i.price,
+            quantity: i.quantity,
+            selectedVariant: i.selectedVariant || null
+          })),
           total: total,
-          status: 'pending',
-          is_read: false
+          item_count: totalItemCount,
+          status: 'sent', // 'sent' cumple con la restricción de base de datos
+          status_updated_at: nowIso,
+          source_page: window.location.pathname
         }]).select().single();
 
-        if (!error && data) orderUuid = data.id;
+        if (!error && data) {
+          orderUuid = data.id;
+        } else if (error) {
+          console.error('[Cart] Error guardando pedido en Supabase:', error);
+        }
       }
-    } catch (e) { console.warn(e); }
+    } catch (e) {
+      console.warn('[Cart] Excepción al guardar pedido:', e);
+    }
 
     let itemsText = cartItems.map(i => {
       const qty = parseInt(i.quantity, 10) || 1;
@@ -233,17 +265,22 @@
       return `• ${qty}x *${i.title}${v}* - Q${((parseFloat(i.price) || 0) * qty).toFixed(2)}`;
     }).join('\n');
 
-    const baseUrl = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-    const trackingUrl = orderUuid ? `${baseUrl}rastreo.html?id=${orderUuid}` : '';
-
-    let trackingMsg = trackingUrl ? `\n\n🔍 *RASTREA TU PEDIDO AQUÍ:*\n${trackingUrl}` : '';
+    const origin = window.location.origin.includes('http') ? window.location.origin : 'https://pasajedelosaltos.com';
+    const trackingUrl = orderUuid ? `${origin}/rastreo.html?id=${orderUuid}` : `${origin}/rastreo.html`;
 
     let msg = `Hola *${firstStore.storeName}*, quiero realizar el siguiente pedido desde *Pasaje de los Altos*:\n\n` +
+              `👤 *CLIENTE:* ${customerName}\n` +
+              `📞 *TELÉFONO:* ${customerPhone}\n\n` +
               `📦 *PRODUCTOS:*\n${itemsText}\n\n` +
               `💰 *TOTAL:* Q ${total.toFixed(2)}\n\n` +
               `🚚 *MÉTODO:* ${deliveryType === 'delivery' ? '🛵 Envío a domicilio' : '🏪 Pickup'}\n` +
               (deliveryType === 'delivery' ? `📍 *DIRECCIÓN:* ${address}\n` : '') +
-              trackingMsg;
+              (reference ? `📝 *REFERENCIA:* ${reference}\n` : '') +
+              `\n📍 Sigue el estado de tu pedido aquí:\n${trackingUrl}`;
+
+    cartItems = [];
+    saveCart();
+    closeDrawer();
 
     const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(waUrl, '_blank');

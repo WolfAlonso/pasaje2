@@ -87,28 +87,34 @@
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Precio Base (Q) *</label>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Precio Oferta / Venta Actual (Q) *</label>
               <input type="number" step="0.01" min="0" id="price" required placeholder="45.00"
                 class="w-full border border-slate-200 p-2.5 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-extrabold text-slate-900 bg-white">
             </div>
 
-            <!-- OFERTA RELÁMPAGO -->
+            <!-- CONTROLES DE OFERTA RELÁMPAGO -->
             <div class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 space-y-3">
               <label class="inline-flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" id="isOnSale" class="w-4 h-4 accent-rose-600 rounded">
                 <span class="text-xs font-black text-rose-900 uppercase">🔥 Poner en Oferta Relámpago</span>
               </label>
 
-              <div id="saleFieldsContainer" class="hidden space-y-2 pt-1">
+              <div id="saleFieldsContainer" class="hidden space-y-3 pt-1">
                 <div>
-                  <label class="block text-[10px] font-bold text-rose-800 uppercase mb-1">Precio Original (Antes)</label>
+                  <label class="block text-[10px] font-bold text-rose-800 uppercase mb-1">Precio Original (Sin Descuento)</label>
                   <input type="number" step="0.01" min="0" id="originalPrice" placeholder="Ej. 60.00"
-                    class="w-full border border-rose-200 p-2 rounded-xl text-xs bg-white outline-none">
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-rose-800 uppercase mb-1">Fecha y Hora Límite</label>
-                  <input type="datetime-local" id="saleExpiresAt"
                     class="w-full border border-rose-200 p-2 rounded-xl text-xs bg-white outline-none font-semibold">
+                </div>
+
+                <!-- Cálculo automático de Ahorro -->
+                <div id="savingsBadge" class="hidden bg-rose-100 border border-rose-300 rounded-xl p-2 text-center text-xs font-black text-rose-800">
+                  Ahorro: Q 0.00 (0% OFF)
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-bold text-rose-800 uppercase mb-1">Fecha y Hora de Vencimiento</label>
+                  <input type="datetime-local" id="saleExpiresAt"
+                    class="w-full border border-rose-200 p-2 rounded-xl text-xs bg-white outline-none font-semibold text-slate-800">
                 </div>
               </div>
             </div>
@@ -162,11 +168,35 @@
     const cancelBtn = document.getElementById('cancelBtn');
     const isOnSaleCheck = document.getElementById('isOnSale');
     const saleFieldsContainer = document.getElementById('saleFieldsContainer');
+    const priceInput = document.getElementById('price');
+    const originalPriceInput = document.getElementById('originalPrice');
+    const savingsBadge = document.getElementById('savingsBadge');
 
     isOnSaleCheck?.addEventListener('change', () => {
-      if (isOnSaleCheck.checked) saleFieldsContainer.classList.remove('hidden');
-      else saleFieldsContainer.classList.add('hidden');
+      if (isOnSaleCheck.checked) {
+        saleFieldsContainer.classList.remove('hidden');
+        calculateSavings();
+      } else {
+        saleFieldsContainer.classList.add('hidden');
+      }
     });
+
+    function calculateSavings() {
+      const salePrice = parseFloat(priceInput.value) || 0;
+      const origPrice = parseFloat(originalPriceInput.value) || 0;
+
+      if (isOnSaleCheck.checked && origPrice > salePrice && salePrice > 0) {
+        const diff = origPrice - salePrice;
+        const pct = Math.round((diff / origPrice) * 100);
+        savingsBadge.textContent = `⚡ El cliente ahorra: Q ${diff.toFixed(2)} (${pct}% OFF)`;
+        savingsBadge.classList.remove('hidden');
+      } else {
+        savingsBadge.classList.add('hidden');
+      }
+    }
+
+    priceInput?.addEventListener('input', calculateSavings);
+    originalPriceInput?.addEventListener('input', calculateSavings);
 
     function checkPlanLimits() {
       if (!currentStore) return;
@@ -301,6 +331,7 @@
         form.reset();
         productIdEl.value = '';
         if (saleFieldsContainer) saleFieldsContainer.classList.add('hidden');
+        if (savingsBadge) savingsBadge.classList.add('hidden');
         if (productImgUI) productImgUI.clearPreview();
         await loadMyProducts();
       } catch (err) {
@@ -319,7 +350,7 @@
       document.getElementById('countBadge').textContent = list.length;
 
       if (list.length === 0) {
-        container.innerHTML = '<div class="bg-white rounded-2xl p-8 text-center"><p class="text-slate-500 text-xs">Sin productos.</p></div>';
+        container.innerHTML = '<div class="bg-white rounded-2xl p-8 text-center"><p class="text-slate-500 text-xs font-semibold">Sin productos registrados.</p></div>';
         return;
       }
 
@@ -328,10 +359,13 @@
           <img src="${p.image_url || window.PLACEHOLDER_IMG}" class="w-16 h-16 rounded-xl object-cover bg-slate-100 flex-shrink-0">
           <div class="flex-1 min-w-0">
             <h3 class="font-bold text-slate-800 text-xs truncate">${dashEscapeHtml(p.title)}</h3>
-            <p class="text-xs font-black text-emerald-600">Q ${parseFloat(p.price).toFixed(2)} ${p.is_on_sale ? '<span class="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded ml-1 font-bold">🔥 Oferta</span>' : ''}</p>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="text-xs font-black text-emerald-600">Q ${parseFloat(p.price).toFixed(2)}</span>
+              ${p.is_on_sale ? `<span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-extrabold flex items-center gap-1">🔥 Oferta ${p.original_price ? '(Q' + parseFloat(p.original_price).toFixed(2) + ')' : ''}</span>` : ''}
+            </div>
           </div>
-          <button data-action="edit" data-id="${p.id}" class="text-xs bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded-xl">Editar</button>
-        endarticle`).join('');
+          <button data-action="edit" data-id="${p.id}" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded-xl transition">Editar</button>
+        </article>`).join('');
 
       container.querySelectorAll('[data-action="edit"]').forEach(btn => {
         btn.onclick = () => {
@@ -352,8 +386,10 @@
             if (document.getElementById('saleExpiresAt') && p.sale_expires_at) {
               document.getElementById('saleExpiresAt').value = p.sale_expires_at.substring(0, 16);
             }
+            calculateSavings();
           } else {
             if (saleFieldsContainer) saleFieldsContainer.classList.add('hidden');
+            if (savingsBadge) savingsBadge.classList.add('hidden');
           }
           saveBtn.textContent = 'Actualizar';
           cancelBtn.classList.remove('hidden');
@@ -365,6 +401,7 @@
     cancelBtn.onclick = () => {
       form.reset(); productIdEl.value = ''; cancelBtn.classList.add('hidden'); saveBtn.textContent = 'Publicar';
       if (saleFieldsContainer) saleFieldsContainer.classList.add('hidden');
+      if (savingsBadge) savingsBadge.classList.add('hidden');
       if (productImgUI) productImgUI.clearPreview();
     };
   </script>

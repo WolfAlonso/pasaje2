@@ -10,12 +10,15 @@
   <link rel="icon" href="img/favicon.ico">
   <title>Registro de Emprendedores · Pasaje de los Altos</title>
 
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase SDK & Config -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
   <script src="js/theme-loader.js?v=2"></script>
 
-
+  <!-- Fuentes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -23,158 +26,272 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
     input:focus, select:focus, textarea:focus { outline: none; }
+
+    /* Estilos de Liquid Glass Preservados */
+    .glass-container {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+    }
   </style>
 </head>
-<body class="bg-gradient-to-br from-blue-900 via-blue-800 to-emerald-700 min-h-screen py-8 px-4">
+<body class="bg-gradient-to-br from-blue-950 via-blue-900 to-emerald-800 min-h-screen py-8 px-4 flex items-center justify-center">
 
-  <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
+  <div class="w-full max-w-2xl glass-container rounded-3xl p-6 sm:p-10 transition-all duration-300">
 
-    <div class="text-center mb-6">
-      <a href="index.html" class="text-2xl font-extrabold text-blue-900">
-        Pasaje de los <span class="text-emerald-500">Altos</span>
+    <!-- Encabezado de la Marca -->
+    <div class="text-center mb-8">
+      <a href="index.html" class="inline-block text-3xl font-extrabold text-blue-950 tracking-tight hover:opacity-90 transition">
+        Pasaje de los <span class="text-emerald-600">Altos</span>
       </a>
-      <h1 class="text-xl font-bold text-gray-800 mt-3">Registra tu emprendimiento</h1>
-      <p class="text-sm text-gray-500 mt-1">Completa tus datos para empezar a vender en el catálogo local.</p>
+      <h1 class="text-2xl font-bold text-gray-800 mt-3">Únete como Emprendedor</h1>
+      <p class="text-sm text-gray-600 mt-1">Crea tu cuenta e impulsa el perfil público de tu negocio en Quetzaltenango.</p>
     </div>
 
-    <form id="registroForm" class="space-y-5">
+    <!-- Indicador de Pasos (Wizard Stepper) -->
+    <div class="flex items-center justify-center mb-8 gap-3 sm:gap-6">
+      <div id="stepBadge1" class="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-md transition-all">
+        <span class="w-5 h-5 rounded-full bg-white text-emerald-700 flex items-center justify-center text-[11px] font-black">1</span>
+        <span>Datos de Cuenta</span>
+      </div>
+      <div class="h-0.5 w-8 bg-gray-300 rounded"></div>
+      <div id="stepBadge2" class="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-gray-200 text-gray-500 transition-all">
+        <span class="w-5 h-5 rounded-full bg-gray-400 text-white flex items-center justify-center text-[11px] font-black">2</span>
+        <span>Datos del Comercio</span>
+      </div>
+    </div>
 
-      <!-- SECCIÓN: CUENTA -->
-      <fieldset class="border border-gray-200 rounded-xl p-4">
-        <legend class="px-2 text-xs font-bold text-blue-700 uppercase tracking-wider">
-          Datos de tu cuenta
-        </legend>
+    <!-- Formulario Principal -->
+    <form id="registroForm" novalidate>
 
-        <div class="space-y-3 mt-1">
+      <!-- PASO 1: DATOS DE CUENTA Y PROPIETARIO -->
+      <div id="step1" class="space-y-5">
+        <fieldset class="border border-gray-200/80 rounded-2xl p-5 bg-white/70 shadow-sm space-y-4">
+          <legend class="px-3 text-xs font-black text-blue-800 uppercase tracking-wider bg-white/90 rounded-full border border-blue-100 py-0.5">
+            👤 Información del Propietario
+          </legend>
+
           <div>
-            <label for="email" class="block text-sm font-medium text-gray-700">Correo electrónico *</label>
-            <input type="email" id="email" required autocomplete="email"
-              placeholder="tucorreo@ejemplo.com"
-              class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            <label for="ownerFullName" class="block text-xs font-bold text-gray-700 uppercase mb-1">Nombre completo *</label>
+            <input type="text" id="ownerFullName" required placeholder="Ej. María Isabel López Pérez"
+              class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition">
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="phonePersonal" class="block text-xs font-bold text-gray-700 uppercase mb-1">Teléfono personal de contacto *</label>
+            <input type="tel" id="phonePersonal" required placeholder="Ej. 55551234"
+              class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition">
+            <p class="text-[11px] text-gray-500 mt-1">🔒 Para coordinaciones internas de administración. No se publica.</p>
+          </div>
+        </fieldset>
+
+        <fieldset class="border border-gray-200/80 rounded-2xl p-5 bg-white/70 shadow-sm space-y-4">
+          <legend class="px-3 text-xs font-black text-blue-800 uppercase tracking-wider bg-white/90 rounded-full border border-blue-100 py-0.5">
+            🔑 Credenciales de Acceso
+          </legend>
+
+          <div>
+            <label for="email" class="block text-xs font-bold text-gray-700 uppercase mb-1">Correo electrónico *</label>
+            <input type="email" id="email" required autocomplete="email" placeholder="tucomercio@ejemplo.com"
+              class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition">
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label for="password" class="block text-sm font-medium text-gray-700">Contraseña *</label>
-              <input type="password" id="password" required minlength="6" autocomplete="new-password"
-                placeholder="Mínimo 6 caracteres"
-                class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+              <label for="password" class="block text-xs font-bold text-gray-700 uppercase mb-1">Contraseña *</label>
+              <input type="password" id="password" required minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres"
+                class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition">
             </div>
             <div>
-              <label for="passwordConfirm" class="block text-sm font-medium text-gray-700">Confirmar contraseña *</label>
-              <input type="password" id="passwordConfirm" required minlength="6" autocomplete="new-password"
-                placeholder="Repite la contraseña"
-                class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+              <label for="passwordConfirm" class="block text-xs font-bold text-gray-700 uppercase mb-1">Confirmar Contraseña *</label>
+              <input type="password" id="passwordConfirm" required minlength="6" autocomplete="new-password" placeholder="Repite la contraseña"
+                class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition">
             </div>
           </div>
-        </div>
-      </fieldset>
+        </fieldset>
 
-      <!-- SECCIÓN: PROPIETARIO -->
-      <fieldset class="border border-gray-200 rounded-xl p-4">
-        <legend class="px-2 text-xs font-bold text-blue-700 uppercase tracking-wider">
-          Datos del propietario
-        </legend>
+        <button type="button" id="nextStepBtn"
+          class="w-full bg-blue-900 hover:bg-blue-950 text-white font-bold py-3.5 rounded-xl transition shadow-lg flex items-center justify-center gap-2">
+          <span>Continuar a datos de la tienda</span>
+          <span>→</span>
+        </button>
+      </div>
 
-        <div class="space-y-3 mt-1">
+      <!-- PASO 2: DATOS DEL COMERCIO Y TIENDA -->
+      <div id="step2" class="space-y-5 hidden">
+        <fieldset class="border border-gray-200/80 rounded-2xl p-5 bg-white/70 shadow-sm space-y-4">
+          <legend class="px-3 text-xs font-black text-emerald-800 uppercase tracking-wider bg-white/90 rounded-full border border-emerald-100 py-0.5">
+            🏪 Perfil Público del Comercio
+          </legend>
+
+          <!-- Nombre comercial & Slug -->
           <div>
-            <label for="ownerFullName" class="block text-sm font-medium text-gray-700">Nombre completo *</label>
-            <input type="text" id="ownerFullName" required placeholder="Ej. María López Pérez"
-              class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+            <label for="storeName" class="block text-xs font-bold text-gray-700 uppercase mb-1">Nombre Comercial del Negocio *</label>
+            <input type="text" id="storeName" required placeholder="Ej. Panadería San Rafael"
+              class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition">
+            
+            <!-- Previsualización de Slug -->
+            <div class="mt-2 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <p class="text-gray-500">
+                🔗 Enlace de tu tienda: <span class="font-mono text-emerald-700 font-bold" id="slugPreview">pasaje.gt/tienda/mi-tienda</span>
+              </p>
+              <span id="nameStatus" class="hidden text-xs font-bold"></span>
+            </div>
           </div>
 
+          <!-- WhatsApp Comercial -->
           <div>
-            <label for="phonePersonal" class="block text-sm font-medium text-gray-700">Teléfono personal *</label>
-            <input type="tel" id="phonePersonal" required placeholder="Ej. 50255551234"
-              class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-            <p class="text-xs text-gray-400 mt-1">Solo para contacto interno. No se muestra al público.</p>
-          </div>
-        </div>
-      </fieldset>
-
-      <!-- SECCIÓN: EMPRENDIMIENTO -->
-      <fieldset class="border border-gray-200 rounded-xl p-4">
-        <legend class="px-2 text-xs font-bold text-blue-700 uppercase tracking-wider">
-          Tu emprendimiento
-        </legend>
-
-        <div class="space-y-3 mt-1">
-          <div>
-            <label for="storeName" class="block text-sm font-medium text-gray-700">Nombre comercial *</label>
-            <input type="text" id="storeName" required placeholder="Ej. Gelatinas El Alto"
-              class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-            <p class="text-xs text-gray-400 mt-1">Así aparecerá tu tienda en el catálogo.</p>
-          </div>
-
-          <div>
-            <label for="storeWhatsapp" class="block text-sm font-medium text-gray-700">WhatsApp de ventas *</label>
+            <label for="storeWhatsapp" class="block text-xs font-bold text-gray-700 uppercase mb-1">WhatsApp de Pedidos *</label>
             <input type="tel" id="storeWhatsapp" required placeholder="Ej. 50255551234"
-              class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-            <p class="text-xs text-gray-400 mt-1">Con código de país, sin +, espacios ni guiones. Aquí recibirás los pedidos.</p>
+              class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition">
+            <p class="text-[11px] text-gray-500 mt-1">📲 Los clientes se comunicarán directamente a este número para comprar tus productos.</p>
           </div>
 
+          <!-- Categoría Principal -->
           <div>
-            <label for="mainCategory" class="block text-sm font-medium text-gray-700">Categoría principal *</label>
+            <label for="mainCategory" class="block text-xs font-bold text-gray-700 uppercase mb-1">Categoría Principal *</label>
             <select id="mainCategory" required
-              class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+              class="w-full border border-gray-300 p-3 rounded-xl text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
               <option value="">Cargando categorías...</option>
             </select>
           </div>
 
-          <div>
-            <label for="address" class="block text-sm font-medium text-gray-700">Dirección física *</label>
-            <input type="text" id="address" required placeholder="Ej. 4a Calle 12-34, Zona 3, Quetzaltenango"
-              class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          <!-- Zona de Xela y Tipo de Local -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="storeZone" class="block text-xs font-bold text-gray-700 uppercase mb-1">Zona de Quetzaltenango *</label>
+              <select id="storeZone" required
+                class="w-full border border-gray-300 p-3 rounded-xl text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition font-medium">
+                <option value="Zona 1">Zona 1 (Centro Histórico)</option>
+                <option value="Zona 2">Zona 2</option>
+                <option value="Zona 3">Zona 3 (Terminal / Comercial)</option>
+                <option value="Zona 4">Zona 4</option>
+                <option value="Zona 5">Zona 5</option>
+                <option value="Zona 6">Zona 6</option>
+                <option value="Zona 7">Zona 7</option>
+                <option value="Zona 8">Zona 8</option>
+                <option value="Zona 9">Zona 9</option>
+                <option value="Zona 10">Zona 10</option>
+                <option value="Zona 11">Zona 11</option>
+                <option value="Interurbano">Interurbano / Alrededores de Xela</option>
+              </select>
+            </div>
+
+            <div class="flex items-center pt-2 sm:pt-6">
+              <label class="inline-flex items-center gap-3 cursor-pointer p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl w-full">
+                <input type="checkbox" id="hasPhysicalStore" checked class="w-5 h-5 accent-emerald-600 rounded">
+                <span class="text-xs font-bold text-emerald-950">📍 Cuento con Local Físico</span>
+              </label>
+            </div>
           </div>
 
+          <!-- Dirección / Referencia -->
           <div>
-            <label for="description" class="block text-sm font-medium text-gray-700">Descripción corta (opcional)</label>
-            <textarea id="description" rows="3" placeholder="Cuéntales a tus clientes qué ofreces."
-              class="w-full border border-gray-300 p-2.5 rounded-lg mt-1 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"></textarea>
+            <label for="address" class="block text-xs font-bold text-gray-700 uppercase mb-1">Dirección o Referencia Comercial *</label>
+            <input type="text" id="address" required placeholder="Ej. 14 Avenida 4-12, Zona 1, frente al Parque Central"
+              class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition">
           </div>
+
+          <!-- Descripción Corta -->
+          <div>
+            <label for="description" class="block text-xs font-bold text-gray-700 uppercase mb-1">Descripción corta (Opcional)</label>
+            <textarea id="description" rows="2" placeholder="Resumen de tus especialidades, productos estrella u horarios..."
+              class="w-full border border-gray-300 p-3 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition"></textarea>
+          </div>
+        </fieldset>
+
+        <!-- Mensajes de Alerta / Estado -->
+        <div id="message" class="hidden text-sm text-center p-3.5 rounded-xl transition"></div>
+
+        <div class="flex gap-3">
+          <button type="button" id="prevStepBtn"
+            class="w-1/3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3.5 rounded-xl transition text-sm">
+            ← Regresar
+          </button>
+          
+          <button type="submit" id="submitBtn"
+            class="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+            <span id="btnSpinner" class="hidden">
+              <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </span>
+            <span id="btnText">Crear Mi Cuenta y Registrar Tienda</span>
+          </button>
         </div>
-      </fieldset>
+      </div>
 
-      <!-- Mensaje de estado -->
-      <div id="message" class="hidden text-sm text-center p-3 rounded-lg"></div>
-
-      <button type="submit" id="submitBtn"
-        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
-        Crear mi cuenta y tienda
-      </button>
     </form>
 
-    <div class="mt-6 pt-6 border-t text-center space-y-2">
+    <!-- Footer -->
+    <div class="mt-8 pt-6 border-t border-gray-200/60 text-center space-y-2">
       <p class="text-sm text-gray-600">
-        ¿Ya tienes cuenta?
-        <a href="login.html" class="text-emerald-600 font-semibold hover:underline">Inicia sesión aquí</a>
+        ¿Ya posees una cuenta registrada?
+        <a href="login.html" class="text-emerald-700 font-extrabold hover:underline">Inicia sesión aquí</a>
       </p>
-      <a href="index.html" class="block text-xs text-gray-500 hover:text-blue-900">
-        ← Volver a la tienda principal
+      <a href="index.html" class="inline-block text-xs text-gray-500 hover:text-blue-900 transition">
+        ← Regresar al catálogo principal
       </a>
     </div>
+
   </div>
 
+  <!-- SCRIPT DE LOGICA Y EVENTOS -->
   <script>
-    // =============================================================
-    // Estado
-    // =============================================================
+    // Variables de Estado Globals
     let categories = [];
+    let isStoreNameUnique = true;
+    let nameCheckTimeout = null;
+
+    // Elementos del DOM
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const stepBadge1 = document.getElementById('stepBadge1');
+    const stepBadge2 = document.getElementById('stepBadge2');
+    const nextStepBtn = document.getElementById('nextStepBtn');
+    const prevStepBtn = document.getElementById('prevStepBtn');
+
     const form = document.getElementById('registroForm');
     const submitBtn = document.getElementById('submitBtn');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const btnText = document.getElementById('btnText');
     const msgEl = document.getElementById('message');
 
-    // =============================================================
-    // Utilidades
-    // =============================================================
+    const storeNameInput = document.getElementById('storeName');
+    const slugPreview = document.getElementById('slugPreview');
+    const nameStatus = document.getElementById('nameStatus');
+
+    // Helper: Generador de Slugs
+    function slugify(text) {
+      return (text || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Elimina acentos
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9 -]/g, '')     // Quita caracteres especiales
+        .replace(/\s+/g, '-')            // Espacios a guiones
+        .replace(/-+/g, '-');            // Evita múltiples guiones
+    }
+
+    // Mostrar mensajes
     function showMessage(text, type) {
       const colors = {
-        error:   'bg-red-50 text-red-700 border border-red-200',
-        success: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-        info:    'bg-blue-50 text-blue-700 border border-blue-200'
+        error:   'bg-red-50 text-red-700 border border-red-200 font-semibold',
+        success: 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold',
+        info:    'bg-blue-50 text-blue-800 border border-blue-200'
       };
       msgEl.textContent = text;
-      msgEl.className = 'text-sm text-center p-3 rounded-lg ' + (colors[type] || colors.info);
+      msgEl.className = 'text-sm text-center p-3.5 rounded-xl transition ' + (colors[type] || colors.info);
       msgEl.classList.remove('hidden');
     }
 
@@ -185,140 +302,277 @@
     function friendlyError(err) {
       const m = (err?.message || '').toLowerCase();
       if (m.includes('already registered') || m.includes('user already'))
-        return 'Este correo ya está registrado. Intenta iniciar sesión.';
+        return 'Este correo electrónico ya está registrado. Intenta iniciar sesión.';
       if (m.includes('password'))
-        return 'La contraseña no cumple los requisitos (mínimo 6 caracteres).';
-      if (m.includes('rate limit') || m.includes('too many'))
-        return 'Demasiados intentos. Espera unos minutos e intenta de nuevo.';
-      if (m.includes('invalid email'))
-        return 'El formato del correo no es válido.';
-      return err?.message || 'Error inesperado. Revisa la consola.';
+        return 'La contraseña debe tener al menos 6 caracteres.';
+      if (m.includes('rate limit'))
+        return 'Demasiados intentos. Por favor espera un minuto.';
+      return err?.message || 'Ocurrió un error inesperado al procesar la solicitud.';
     }
 
-    // =============================================================
-    // Cargar categorías desde Supabase
-    // =============================================================
+    // Cargar Categorías
     async function loadCategories() {
       const select = document.getElementById('mainCategory');
-      const { data, error } = await _supabase
-        .from('categories')
-        .select('id, name, icon')
-        .order('sort_order');
+      try {
+        const { data, error } = await _supabase
+          .from('categories')
+          .select('id, name, icon')
+          .order('sort_order');
 
-      if (error) {
-        console.error('[Categorías]', error);
+        if (error) throw error;
+
+        categories = data || [];
+        select.innerHTML = '<option value="">Selecciona una categoría...</option>' +
+          categories.map(c => `<option value="${c.id}">${c.icon || '📦'} ${c.name}</option>`).join('');
+      } catch (err) {
+        console.error('[Categorías]', err);
         select.innerHTML = '<option value="">Error al cargar categorías</option>';
+      }
+    }
+
+    // Verificación de Duplicidad de Tienda
+    async function checkStoreUniqueness(name) {
+      const candidateSlug = slugify(name);
+      if (!candidateSlug) {
+        nameStatus.classList.add('hidden');
         return;
       }
 
-      categories = data || [];
-      select.innerHTML = '<option value="">Selecciona una categoría...</option>' +
-        categories.map(c => `<option value="${c.id}">${c.icon || ''} ${c.name}</option>`).join('');
+      nameStatus.textContent = 'Verificando disponibilidad...';
+      nameStatus.className = 'text-xs font-bold text-gray-400';
+      nameStatus.classList.remove('hidden');
+
+      try {
+        const { data, error } = await _supabase
+          .from('stores')
+          .select('id')
+          .or(`name.ilike.${name.trim()},slug.eq.${candidateSlug}`)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          isStoreNameUnique = false;
+          nameStatus.textContent = '⚠️ Este nombre de negocio ya está ocupado.';
+          nameStatus.className = 'text-xs font-bold text-red-600';
+        } else {
+          isStoreNameUnique = true;
+          nameStatus.textContent = '✓ Nombre disponible';
+          nameStatus.className = 'text-xs font-bold text-emerald-600';
+        }
+      } catch (err) {
+        console.warn('[Verificación Nombre]', err);
+        nameStatus.classList.add('hidden');
+      }
     }
 
-    // =============================================================
-    // Si ya hay sesión activa, ir directo al dashboard
-    // =============================================================
-    redirectIfAuthenticated();
+    // Escuchador para nombre comercial y actualización de slug
+    storeNameInput.addEventListener('input', (e) => {
+      const val = e.target.value;
+      const slug = slugify(val) || 'mi-tienda';
+      slugPreview.textContent = `pasaje.gt/tienda/${slug}`;
 
-    // =============================================================
-    // Submit del formulario
-    // =============================================================
+      clearTimeout(nameCheckTimeout);
+      if (val.trim().length >= 3) {
+        nameCheckTimeout = setTimeout(() => checkStoreUniqueness(val), 400);
+      } else {
+        nameStatus.classList.add('hidden');
+        isStoreNameUnique = true;
+      }
+    });
+
+    // Control de Wizard: Paso 1 -> Paso 2
+    nextStepBtn.addEventListener('click', () => {
+      hideMessage();
+      const ownerFullName = document.getElementById('ownerFullName').value.trim();
+      const phonePersonal = cleanPhone(document.getElementById('phonePersonal').value);
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const passwordConfirm = document.getElementById('passwordConfirm').value;
+
+      if (!ownerFullName) {
+        alert('Por favor ingresa tu nombre completo.');
+        return;
+      }
+      if (phonePersonal.length < 8) {
+        alert('Ingresa un teléfono personal válido (mínimo 8 dígitos).');
+        return;
+      }
+      if (!email || !email.includes('@')) {
+        alert('Ingresa un correo electrónico válido.');
+        return;
+      }
+      if (password.length < 6) {
+        alert('La contraseña debe contener al menos 6 caracteres.');
+        return;
+      }
+      if (password !== passwordConfirm) {
+        alert('Las contraseñas no coinciden.');
+        return;
+      }
+
+      // Transición al Paso 2
+      step1.classList.add('hidden');
+      step2.classList.remove('hidden');
+
+      stepBadge1.className = 'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-gray-200 text-gray-600 transition-all';
+      stepBadge1.querySelector('span').className = 'w-5 h-5 rounded-full bg-gray-400 text-white flex items-center justify-center text-[11px] font-black';
+
+      stepBadge2.className = 'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-md transition-all';
+      stepBadge2.querySelector('span').className = 'w-5 h-5 rounded-full bg-white text-emerald-700 flex items-center justify-center text-[11px] font-black';
+    });
+
+    // Control de Wizard: Regresar a Paso 1
+    prevStepBtn.addEventListener('click', () => {
+      hideMessage();
+      step2.classList.add('hidden');
+      step1.classList.remove('hidden');
+
+      stepBadge2.className = 'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-gray-200 text-gray-500 transition-all';
+      stepBadge2.querySelector('span').className = 'w-5 h-5 rounded-full bg-gray-400 text-white flex items-center justify-center text-[11px] font-black';
+
+      stepBadge1.className = 'flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-md transition-all';
+      stepBadge1.querySelector('span').className = 'w-5 h-5 rounded-full bg-white text-emerald-700 flex items-center justify-center text-[11px] font-black';
+    });
+
+    // Envío del Formulario
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       hideMessage();
 
-      const email          = document.getElementById('email').value.trim();
-      const password       = document.getElementById('password').value;
-      const passwordConfirm = document.getElementById('passwordConfirm').value;
+      // Recolección
       const ownerFullName  = document.getElementById('ownerFullName').value.trim();
       const phonePersonal  = cleanPhone(document.getElementById('phonePersonal').value);
+      const email          = document.getElementById('email').value.trim();
+      const password       = document.getElementById('password').value;
+
       const storeName      = document.getElementById('storeName').value.trim();
       const storeWhatsapp  = cleanPhone(document.getElementById('storeWhatsapp').value);
       const mainCategoryId = parseInt(document.getElementById('mainCategory').value, 10) || null;
+      const storeZone      = document.getElementById('storeZone').value;
+      const hasPhysical    = document.getElementById('hasPhysicalStore').checked;
       const address        = document.getElementById('address').value.trim();
       const description    = document.getElementById('description').value.trim() || null;
 
-      // Validaciones locales
-      if (password !== passwordConfirm) {
-        showMessage('Las contraseñas no coinciden.', 'error');
+      // Validaciones Paso 2
+      if (!storeName) {
+        showMessage('Por favor ingresa el nombre comercial de tu negocio.', 'error');
         return;
       }
-      if (!mainCategoryId) {
-        showMessage('Selecciona una categoría principal.', 'error');
+      if (!isStoreNameUnique) {
+        showMessage('El nombre comercial ingresado ya existe. Por favor elige un nombre distinto.', 'error');
         return;
       }
       if (storeWhatsapp.length < 8) {
-        showMessage('El WhatsApp de ventas debe tener al menos 8 dígitos (incluyendo código de país).', 'error');
+        showMessage('El WhatsApp de ventas debe tener al menos 8 dígitos.', 'error');
         return;
       }
-      if (phonePersonal.length < 8) {
-        showMessage('El teléfono personal debe tener al menos 8 dígitos.', 'error');
+      if (!mainCategoryId) {
+        showMessage('Selecciona una categoría principal para tu tienda.', 'error');
+        return;
+      }
+      if (!address) {
+        showMessage('Proporciona una dirección o referencia para la ubicación.', 'error');
         return;
       }
 
+      // Estado Activo de Carga
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Creando tu cuenta...';
+      btnSpinner.classList.remove('hidden');
+      btnText.textContent = 'Procesando registro...';
 
-      // Datos que se guardarán (en stores o en localStorage)
-      const storePayload = {
-        name: storeName,
-        whatsapp: storeWhatsapp,
-        description: description,
-        address: address,
-        owner_full_name: ownerFullName,
-        phone_personal: phonePersonal,
-        main_category_id: mainCategoryId
-      };
+      const finalSlug = slugify(storeName);
 
       try {
-        // 1) Crear usuario en Auth
+        // Re-verificar duplicidad antes de proceder
+        const { data: existingStore } = await _supabase
+          .from('stores')
+          .select('id')
+          .or(`name.ilike.${storeName},slug.eq.${finalSlug}`)
+          .maybeSingle();
+
+        if (existingStore) {
+          throw new Error('El nombre de tienda o enlace personalizado ya existe en la plataforma.');
+        }
+
+        // 1. Registro Auth en Supabase
         const { data: signupData, error: signupError } = await _supabase.auth.signUp({
           email,
-          password
+          password,
+          options: {
+            data: {
+              full_name: ownerFullName,
+              phone: phonePersonal
+            }
+          }
         });
+
         if (signupError) throw signupError;
 
-        // 2) Si hay sesión activa (confirmación de email desactivada):
-        //    insertar directo en stores
+        const userId = signupData.user?.id;
+        if (!userId) throw new Error('No se pudo obtener el ID de usuario registrado.');
+
+        const storePayload = {
+          user_id: userId,
+          name: storeName,
+          slug: finalSlug,
+          whatsapp: storeWhatsapp,
+          main_category_id: mainCategoryId,
+          zone: storeZone,
+          has_physical_store: hasPhysical,
+          address_details: address,
+          address: address,
+          description: description,
+          owner_full_name: ownerFullName,
+          phone_personal: phonePersonal,
+          plan_type: 'free',
+          is_active: true,
+          is_verified: false
+        };
+
+        // 2. Si la sesión fue iniciada inmediatamente (Confirmación de email desactivada)
         if (signupData.session) {
-          submitBtn.textContent = 'Creando tu tienda...';
+          btnText.textContent = 'Creando tienda pública...';
 
           const { error: storeError } = await _supabase
             .from('stores')
-            .insert([{
-              user_id: signupData.user.id,
-              ...storePayload
-            }]);
+            .insert([storePayload]);
 
           if (storeError) throw storeError;
 
-          showMessage('¡Todo listo! Redirigiendo a tu panel...', 'success');
-          setTimeout(() => window.location.replace('dashboard.html'), 1200);
-          return;
+          showMessage('🎉 ¡Cuenta y tienda creadas exitosamente! Redirigiendo a tu panel...', 'success');
+          
+          setTimeout(() => {
+            window.location.replace('dashboard.html');
+          }, 1200);
+
+        } else {
+          // Si Supabase requiere confirmación por correo electrónico
+          localStorage.setItem('pendingStoreSetup', JSON.stringify(storePayload));
+
+          showMessage(
+            '✉️ ¡Cuenta registrada con éxito! Te hemos enviado un enlace de confirmación a tu correo. Al confirmar e iniciar sesión, configuraremos tu tienda automáticamente.',
+            'success'
+          );
+          btnText.textContent = 'Revisa tu correo';
+          setTimeout(() => {
+            window.location.replace('login.html');
+          }, 5000);
         }
 
-        // 3) Si NO hay sesión (confirmación de email activada):
-        //    guardar datos localmente y pedir confirmación
-        localStorage.setItem('pendingStoreSetup', JSON.stringify(storePayload));
-        showMessage(
-          '¡Cuenta creada! Revisa tu correo para confirmarla. Al iniciar sesión por primera vez, cargaremos automáticamente los datos de tu tienda.',
-          'success'
-        );
-        submitBtn.textContent = 'Revisa tu correo';
-        setTimeout(() => window.location.replace('login.html'), 6000);
-
       } catch (err) {
-        console.error('[Registro]', err);
+        console.error('[Onboarding Error]', err);
         showMessage(friendlyError(err), 'error');
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Crear mi cuenta y tienda';
+        btnSpinner.classList.add('hidden');
+        btnText.textContent = 'Crear Mi Cuenta y Registrar Tienda';
       }
     });
 
-    // =============================================================
-    // Init
-    // =============================================================
+    // Auto-redirección si ya cuenta con sesión
+    redirectIfAuthenticated();
+
+    // Cargar Datos Iniciales
     loadCategories();
   </script>
 </body>

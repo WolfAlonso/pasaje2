@@ -1,6 +1,7 @@
 // =============================================================
 // js/dashboard-sidebar.js
-// Sidebar y Topbar adaptativos con botón "Ir al Catálogo" superior y Kit Imprimible QR.
+// Sidebar y Topbar adaptativos con botón "Ir al Catálogo" superior,
+// Asistente de Ventas AI y Kit Imprimible QR.
 // =============================================================
 
 (function () {
@@ -39,6 +40,7 @@
       title: 'Herramientas',
       openByDefault: true,
       items: [
+        { key: 'asistente-ai',    label: 'Asistente de Ventas AI', href: 'dashboard-asistente-ai.html', icon: '🪄' },
         { key: 'material',        label: 'Kit Imprimible QR',      href: 'dashboard-material.html',     icon: '🖨️' },
         { key: 'calculadora',     label: 'Calculadora Producción', href: 'dashboard-calculadora.html',  icon: '🧮' },
         { key: 'calculadora-rev', label: 'Calculadora Reventa',    href: 'dashboard-calculadora2.html', icon: '🛍️' },
@@ -81,7 +83,6 @@
     const session = await requireAuth();
     if (!session) return { session: null, stores: [] };
 
-    // Se especifica select('*') explícito para garantizar que traiga plan_type y plan_expires_at
     const { data, error } = await _supabase
       .from('stores')
       .select('*')
@@ -340,7 +341,6 @@
           <button type="button" id="${SIDEBAR_ID}Close" class="lg:hidden bg-black/10 hover:bg-black/20 w-8 h-8 rounded-xl flex items-center justify-center transition flex-shrink-0 font-bold text-xs">✕</button>
         </div>
 
-        <!-- BOTÓN IR AL CATÁLOGO -->
         <div class="px-3 pt-3 pb-1 flex-shrink-0">
           <a href="${ROOT}index.html"
              class="w-full flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-extrabold bg-black/10 hover:bg-black/20 border border-black/10 transition shadow-sm !text-emerald-600 no-underline">

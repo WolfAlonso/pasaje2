@@ -40,13 +40,28 @@
       }));
     }
 
+    let effectivePrice = parseFloat(p.price || 0);
+    let effectiveOriginalPrice = (p.original_price !== null && p.original_price !== undefined) ? parseFloat(p.original_price) : null;
+    let effectiveIsOnSale = !!p.is_on_sale;
+
+    if (effectiveIsOnSale && p.sale_expires_at) {
+      const expDate = new Date(p.sale_expires_at);
+      if (expDate <= new Date()) {
+        effectiveIsOnSale = false;
+        if (effectiveOriginalPrice && effectiveOriginalPrice > effectivePrice) {
+          effectivePrice = effectiveOriginalPrice;
+          effectiveOriginalPrice = null;
+        }
+      }
+    }
+
     return {
       id: p.id,
       title: p.title || '',
       description: p.description || '',
-      price: parseFloat(p.price || 0),
-      original_price: p.original_price !== null && p.original_price !== undefined ? parseFloat(p.original_price) : null,
-      is_on_sale: !!p.is_on_sale,
+      price: effectivePrice,
+      original_price: effectiveOriginalPrice,
+      is_on_sale: effectiveIsOnSale,
       sale_expires_at: p.sale_expires_at || null,
       image_url: mainImg,
       images: allImages.length > 0 ? allImages : (mainImg ? [mainImg] : []),
@@ -172,6 +187,38 @@
     return { products, hasMore, totalCount, page, limit };
   }
 
+  async function fetchFlashSales(limit = 10) {
+    if (typeof window._supabase === 'undefined') return [];
+
+    const nowIso = new Date().toISOString();
+
+    const { data, error } = await window._supabase
+      .from('products')
+      .select(`
+        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, is_featured, is_active,
+        stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
+        store_id, category_id, created_at,
+        stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
+        categories ( id, name, slug, icon ),
+        product_images ( id, image_url, sort_order ),
+        product_variants ( id, variant_group, name, price_adjustment, stock_quantity )
+      `)
+      .eq('is_active', true)
+      .eq('is_on_sale', true)
+      .eq('stores.is_active', true)
+      .eq('stores.is_suspended', false)
+      .or(`sale_expires_at.gt.${nowIso},sale_expires_at.is.null`)
+      .order('sale_expires_at', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      console.error('[ProductsService] Error al obtener Ofertas Relámpago:', error);
+      return [];
+    }
+
+    return (data || []).map(normalizeProduct);
+  }
+
   async function searchPredictive(term, limit = 6) {
     if (typeof window._supabase === 'undefined') return [];
     if (!term || term.trim().length < 2) return [];
@@ -281,6 +328,7 @@
   window.ProductsService = {
     PAGE_SIZE,
     getProducts: fetchProducts,
+    getFlashSales: fetchFlashSales,
     searchPredictive,
     getFeaturedProducts: fetchFeaturedProducts,
     fetchProductReviews,

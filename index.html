@@ -63,12 +63,12 @@
   <script src="js/cart.js?v=9"></script>
   <script src="js/footer.js?v=4"></script>
   <script src="js/categories-render.js?v=5"></script>
-  <script src="js/stores-render.js?v=4"></script>
+  <script src="js/stores-render.js?v=8"></script>
   <script src="js/public-sidebar.js?v=5"></script>
   <script src="js/liquid-glass.js?v=4"></script>
 
-  <script src="js/services/products-service.js?v=4"></script>
-  <script src="js/ui/product-card.js?v=3"></script>
+  <script src="js/services/products-service.js?v=5"></script>
+  <script src="js/ui/product-card.js?v=5"></script>
 
   <style>
     body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
@@ -132,8 +132,8 @@
 
   <main class="max-w-6xl mx-auto px-4 py-6 w-full flex-1">
 
-    <!-- 🔥 SECCIÓN DE OFERTAS RELÁMPAGO (ESTILO KEMIK) -->
-    <section id="flashSalesSection" class="mb-8 hidden bg-gradient-to-r from-rose-500 to-amber-500 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
+    <!-- SECCIÓN DE OFERTAS RELÁMPAGO -->
+    <section id="flashSalesSection" class="mb-8 hidden bg-gradient-to-r from-rose-600 via-red-500 to-amber-500 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
       <div class="absolute -right-10 -bottom-10 text-white/10 text-9xl font-black pointer-events-none">⚡</div>
       
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 relative z-10">
@@ -145,7 +145,6 @@
           </div>
         </div>
         
-        <!-- Temporizador Global o Contador -->
         <div id="flashTimerGlobal" class="bg-black/30 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center gap-2 border border-white/20 text-xs font-black">
           <span>⚡ Termina en:</span>
           <span id="globalCountdown" class="font-mono text-amber-300">00:00:00</span>
@@ -239,10 +238,16 @@
 
   <div id="pasajeFooter"></div>
 
-  <!-- MODAL QUICK VIEW -->
-  <div id="productModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
-      <div id="productModalContent"></div>
+  <!-- MODAL VISTA RÁPIDA DE PRODUCTOS (REESTRUCTURADO PARA FLECHAS FLOTANTES SIN RECORTE) -->
+  <div id="productModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
+    <div class="relative w-full max-w-2xl">
+      <!-- Capa de Botones Flotantes (Fuera del scroll) -->
+      <div id="modalProductNavWrapper"></div>
+
+      <!-- Contenedor scrolleable blanco -->
+      <div class="bg-white rounded-3xl shadow-2xl max-h-[88vh] overflow-y-auto">
+        <div id="productModalContent"></div>
+      </div>
     </div>
   </div>
 
@@ -257,6 +262,11 @@
     let maxPrice = null;
     let currentSort = 'recent';
     let predictiveCache = [];
+
+    // Estado global de navegación para modal
+    let activeModalProducts = [];
+    let activeProductIndex = -1;
+    let activeGalleryIndex = 0;
 
     const grid = document.getElementById('productsGrid');
     const searchInput = document.getElementById('searchInput');
@@ -273,6 +283,7 @@
     const favCountEl = document.getElementById('favCount');
     const productModal = document.getElementById('productModal');
     const productModalContent = document.getElementById('productModalContent');
+    const modalProductNavWrapper = document.getElementById('modalProductNavWrapper');
 
     function debounce(fn, delay = 300) {
       let timer;
@@ -298,53 +309,35 @@
       else { favCountEl.textContent = n; favCountEl.classList.remove('hidden'); }
     }
 
-    // CARGAR OFERTAS RELÁMPAGO
     async function loadFlashSales() {
       try {
-        const { data, error } = await _supabase
-          .from('products')
-          .select(`id, title, price, original_price, is_on_sale, sale_expires_at, image_url, store_id,
-                   stores ( name, whatsapp, is_verified ),
-                   categories ( name, icon ),
-                   product_images ( image_url, sort_order ),
-                   product_variants (*)`)
-          .eq('is_on_sale', true)
-          .eq('is_active', true)
-          .order('sale_expires_at', { ascending: true });
+        const sales = await ProductsService.getFlashSales(10);
 
-        if (error || !data || data.length === 0) {
+        if (!sales || sales.length === 0) {
           flashSalesSection.classList.add('hidden');
           return;
         }
 
-        const now = new Date();
-        const activeSales = data.filter(p => !p.sale_expires_at || new Date(p.sale_expires_at) > now);
-
-        if (activeSales.length === 0) {
-          flashSalesSection.classList.add('hidden');
-          return;
-        }
-
-        activeSales.forEach(p => loadedProductsMap.set(String(p.id), p));
+        sales.forEach(p => loadedProductsMap.set(String(p.id), p));
         flashSalesSection.classList.remove('hidden');
 
-        flashSalesList.innerHTML = activeSales.map(p => {
-          const storeName = p.stores?.name || 'Tienda';
-          const storeWhatsapp = p.stores?.whatsapp || '';
-          const origPrice = parseFloat(p.original_price || p.price * 1.25);
+        flashSalesList.innerHTML = sales.map(p => {
+          const storeName = p.store_name || 'Tienda';
+          const origPrice = p.original_price && parseFloat(p.original_price) > p.price ? parseFloat(p.original_price) : parseFloat(p.price) * 1.25;
           const salePrice = parseFloat(p.price);
           const diff = origPrice - salePrice;
-          const discountPct = origPrice > 0 ? Math.round((diff / origPrice) * 100) : 20;
+          const discountPct = origPrice > 0 ? Math.round((diff / origPrice) * 100) : 0;
+          const verifiedBadge = p.store_is_verified ? ' ✓' : '';
 
           return `
             <div class="product-card bg-white rounded-2xl p-3 shadow-lg flex-shrink-0 w-56 text-slate-950 flex flex-col justify-between snap-start" data-product-id="${p.id}">
               <div>
                 <div class="relative rounded-xl overflow-hidden bg-slate-100 aspect-square mb-2.5">
                   <img src="${p.image_url || window.PLACEHOLDER_IMG}" alt="${ProductCardUI.escapeHtml(p.title)}" class="w-full h-full object-cover">
-                  <span class="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">-${discountPct}% OFF</span>
+                  ${discountPct > 0 ? `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">⚡ -${discountPct}% OFF</span>` : ''}
                 </div>
                 <h4 class="text-xs font-black text-slate-900 truncate">${ProductCardUI.escapeHtml(p.title)}</h4>
-                <p class="text-[10px] text-slate-500 truncate">🏪 ${ProductCardUI.escapeHtml(storeName)}</p>
+                <p class="text-[10px] text-slate-500 truncate">🏪 ${ProductCardUI.escapeHtml(storeName)}${verifiedBadge}</p>
               </div>
 
               <div class="mt-3 pt-2 border-t border-slate-100">
@@ -360,8 +353,9 @@
             </div>`;
         }).join('');
 
-        // Iniciar temporizador global de ofertas
-        startGlobalCountdown(activeSales[0]?.sale_expires_at);
+        if (sales[0]?.sale_expires_at) {
+          startGlobalCountdown(sales[0].sale_expires_at);
+        }
 
       } catch (err) {
         console.warn('[Index] Error cargando ofertas relámpago:', err);
@@ -437,6 +431,7 @@
         hasMore = res.hasMore;
         currentPage++;
       } catch (err) {
+        console.error('[Index] Error cargando catálogo:', err);
       } finally {
         isLoading = false;
       }
@@ -450,17 +445,31 @@
       try {
         const results = await ProductsService.searchPredictive(term, 6);
         predictiveCache = results;
+
+        const escTerm = ProductCardUI.escapeHtml(term);
+        const viewAllFooter = `
+          <div data-action="view-all-results"
+            class="p-3 bg-slate-50 hover:bg-emerald-50 border-t border-slate-200 text-center cursor-pointer transition relative z-20 flex items-center justify-center gap-1.5 font-extrabold text-xs text-emerald-700">
+            <span>Ver todos los resultados para "${escTerm}"</span>
+            <span>→</span>
+          </div>`;
+
         if (!results || results.length === 0) {
-          predictiveResults.innerHTML = '<div class="p-4 text-center text-xs text-slate-500 font-medium">Sin coincidencias</div>';
+          predictiveResults.innerHTML = `
+            <div class="p-4 text-center text-xs text-slate-500 font-medium">Sin coincidencias exactas</div>
+            ${viewAllFooter}`;
           predictiveResults.classList.remove('hidden');
           return;
         }
-        predictiveResults.innerHTML = results.map(p => `
+
+        const itemsHtml = results.map(p => `
           <div class="predictive-item p-2.5 hover:bg-emerald-50 transition cursor-pointer flex items-center gap-3 border-b last:border-0" data-product-id="${p.id}">
             <img src="${p.image_url || window.PLACEHOLDER_IMG}" class="w-11 h-11 rounded-xl object-cover bg-slate-100 flex-shrink-0">
             <div class="flex-1 min-w-0"><h4 class="text-xs font-bold text-slate-900 truncate">${ProductCardUI.escapeHtml(p.title)}</h4></div>
             <span class="text-xs font-black text-emerald-600">Q ${parseFloat(p.price).toFixed(2)}</span>
           </div>`).join('');
+
+        predictiveResults.innerHTML = itemsHtml + viewAllFooter;
         predictiveResults.classList.remove('hidden');
       } catch (e) {}
     }, 300);
@@ -472,7 +481,24 @@
       triggerPredictiveSearch(val);
     });
 
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchTerm = searchInput.value.trim();
+        predictiveResults.classList.add('hidden');
+        resetAndReload();
+      }
+    });
+
     predictiveResults?.addEventListener('click', (e) => {
+      const viewAllBtn = e.target.closest('[data-action="view-all-results"]');
+      if (viewAllBtn) {
+        searchTerm = searchInput.value.trim();
+        predictiveResults.classList.add('hidden');
+        resetAndReload();
+        return;
+      }
+
       const item = e.target.closest('.predictive-item');
       if (item) {
         const matched = predictiveCache.find(x => String(x.id) === String(item.dataset.productId));
@@ -515,8 +541,7 @@
           window.PasajeCart.addToCart({
             id: product.id, title: product.title, price: product.price,
             image_url: product.image_url, storeId: product.store_id,
-            storeName: product.stores?.name || product.store_name,
-            storeWhatsapp: product.stores?.whatsapp || product.store_whatsapp
+            storeName: product.store_name, storeWhatsapp: product.store_whatsapp
           });
         }
         return;
@@ -533,23 +558,187 @@
     featuredList?.addEventListener('click', handleProductActionClick);
     flashSalesList?.addEventListener('click', handleProductActionClick);
 
-    async function openProductModal(p) {
-      const isFav = window.Favorites ? window.Favorites.has(p.id) : false;
-      const galleryHTML = ProductCardUI.renderGalleryHTML(p.images || p.product_images, p.title);
+    // DELEGACIÓN DE EVENTOS GLOBAL PARA EL MODAL (GALERÍA + NAVEGACIÓN DE PRODUCTOS)
+    productModal?.addEventListener('click', (e) => {
+      // Flechas de Producto Siguiente / Anterior
+      const prevProdBtn = e.target.closest('#modalPrevProductBtn');
+      if (prevProdBtn) {
+        navigateModalProduct(-1);
+        return;
+      }
+
+      const nextProdBtn = e.target.closest('#modalNextProductBtn');
+      if (nextProdBtn) {
+        navigateModalProduct(1);
+        return;
+      }
+
+      // Galería interna del producto
+      const p = activeModalProducts[activeProductIndex];
+      if (!p) return;
+
+      const imgs = Array.isArray(p.images) && p.images.length > 0 ? p.images : [window.PLACEHOLDER_IMG];
+
+      const thumbBtn = e.target.closest('[data-gallery-thumb]');
+      if (thumbBtn) {
+        activeGalleryIndex = parseInt(thumbBtn.dataset.galleryIndex || '0', 10);
+        updateModalGalleryView(imgs);
+        return;
+      }
+
+      const prevImgBtn = e.target.closest('[data-gallery-nav="prev"]');
+      if (prevImgBtn) {
+        activeGalleryIndex = (activeGalleryIndex - 1 + imgs.length) % imgs.length;
+        updateModalGalleryView(imgs);
+        return;
+      }
+
+      const nextImgBtn = e.target.closest('[data-gallery-nav="next"]');
+      if (nextImgBtn) {
+        activeGalleryIndex = (activeGalleryIndex + 1) % imgs.length;
+        updateModalGalleryView(imgs);
+        return;
+      }
+    });
+
+    function updateModalGalleryView(imgs) {
+      const url = imgs[activeGalleryIndex];
+      const mainImg = productModalContent.querySelector('#mainGalleryViewer');
+      const idxBadge = productModalContent.querySelector('#galleryCurrentIdx');
+
+      if (mainImg && url) {
+        mainImg.src = url;
+        if (idxBadge) idxBadge.textContent = activeGalleryIndex + 1;
+
+        productModalContent.querySelectorAll('.gallery-thumb').forEach((b, idx) => {
+          if (idx === activeGalleryIndex) {
+            b.classList.remove('border-transparent', 'opacity-70', 'hover:opacity-100');
+            b.classList.add('border-emerald-500', 'scale-95', 'shadow-sm');
+          } else {
+            b.classList.remove('border-emerald-500', 'scale-95', 'shadow-sm');
+            b.classList.add('border-transparent', 'opacity-70', 'hover:opacity-100');
+          }
+        });
+      }
+    }
+
+    function navigateModalProduct(dir) {
+      if (!activeModalProducts || activeModalProducts.length === 0) return;
+      const nextIdx = activeProductIndex + dir;
+      if (nextIdx >= 0 && nextIdx < activeModalProducts.length) {
+        openProductModal(activeModalProducts[nextIdx], activeModalProducts, nextIdx);
+      }
+    }
+
+    // NAVEGACIÓN GLOBAL POR TECLADO
+    document.addEventListener('keydown', (e) => {
+      const isModalOpen = productModal && !productModal.classList.contains('hidden');
+
+      if (e.key === 'Escape') {
+        if (isModalOpen) {
+          productModal.classList.add('hidden');
+          document.body.style.overflow = '';
+        }
+        if (window.PasajeCart && typeof window.PasajeCart.closeDrawer === 'function') {
+          window.PasajeCart.closeDrawer();
+        }
+        return;
+      }
+
+      if (!isModalOpen) return;
+
+      const p = activeModalProducts[activeProductIndex];
+      const imgs = (p && Array.isArray(p.images) && p.images.length > 0) ? p.images : [window.PLACEHOLDER_IMG];
+
+      if (e.key === 'ArrowUp' || (e.altKey && e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        navigateModalProduct(-1);
+        return;
+      }
+
+      if (e.key === 'ArrowDown' || (e.altKey && e.key === 'ArrowRight')) {
+        e.preventDefault();
+        navigateModalProduct(1);
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (imgs.length > 1) {
+          activeGalleryIndex = (activeGalleryIndex - 1 + imgs.length) % imgs.length;
+          updateModalGalleryView(imgs);
+        } else {
+          navigateModalProduct(-1);
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (imgs.length > 1) {
+          activeGalleryIndex = (activeGalleryIndex + 1) % imgs.length;
+          updateModalGalleryView(imgs);
+        } else {
+          navigateModalProduct(1);
+        }
+        return;
+      }
+    });
+
+    async function openProductModal(p, list = null, index = -1) {
+      if (list && Array.isArray(list) && list.length > 0) {
+        activeModalProducts = list;
+        activeProductIndex = index >= 0 ? index : list.findIndex(x => String(x.id) === String(p.id));
+      } else {
+        activeModalProducts = Array.from(loadedProductsMap.values());
+        activeProductIndex = activeModalProducts.findIndex(x => String(x.id) === String(p.id));
+      }
+
+      if (activeProductIndex === -1) {
+        activeModalProducts.push(p);
+        activeProductIndex = activeModalProducts.length - 1;
+      }
+
+      activeGalleryIndex = 0;
+
+      const hasPrevProduct = activeProductIndex > 0;
+      const hasNextProduct = activeProductIndex < activeModalProducts.length - 1;
+
+      // Renderizado de las Flechas Flotantes en la capa externa no recortada por overflow
+      if (modalProductNavWrapper) {
+        modalProductNavWrapper.innerHTML = `
+          ${hasPrevProduct ? `
+            <button type="button" id="modalPrevProductBtn"
+              class="absolute -left-3 sm:-left-12 top-1/2 -translate-y-1/2 z-50 bg-white hover:bg-slate-100 text-slate-900 w-11 h-11 rounded-full shadow-2xl border border-slate-200 flex items-center justify-center font-black text-2xl transition transform hover:scale-110 active:scale-95"
+              title="Producto Anterior (Alt + ← / ↑)">‹</button>` : ''}
+
+          ${hasNextProduct ? `
+            <button type="button" id="modalNextProductBtn"
+              class="absolute -right-3 sm:-right-12 top-1/2 -translate-y-1/2 z-50 bg-white hover:bg-slate-100 text-slate-900 w-11 h-11 rounded-full shadow-2xl border border-slate-200 flex items-center justify-center font-black text-2xl transition transform hover:scale-110 active:scale-95"
+              title="Producto Siguiente (Alt + → / ↓)">›</button>` : ''}
+        `;
+      }
+
+      const galleryHTML = ProductCardUI.renderGalleryHTML(p.images, p.title, 0);
       const variantsHTML = ProductCardUI.renderVariantsHTML(p.variants);
 
       productModalContent.innerHTML = `
         <div class="relative">
-          <button id="closeProductModalBtn" class="absolute top-3 right-3 z-10 bg-white/90 hover:bg-white text-slate-800 w-8 h-8 rounded-full shadow flex items-center justify-center font-bold text-xs">✕</button>
+          <button id="closeProductModalBtn" class="absolute top-3 right-3 z-20 bg-white/90 hover:bg-white text-slate-800 w-8 h-8 rounded-full shadow flex items-center justify-center font-bold text-xs transition">✕</button>
           <div class="p-4 sm:p-5 pb-0">${galleryHTML}</div>
         </div>
         <div class="p-5">
-          <h2 class="text-lg font-extrabold text-slate-900">${ProductCardUI.escapeHtml(p.title)}</h2>
+          <span class="text-[10px] uppercase font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+            ${p.category_icon || '📦'} ${ProductCardUI.escapeHtml(p.category_name || 'General')}
+          </span>
+          <h2 class="text-lg font-extrabold text-slate-900 mt-1">${ProductCardUI.escapeHtml(p.title)}</h2>
           <p class="text-2xl font-black text-emerald-600 mt-2">Q ${parseFloat(p.price).toFixed(2)}</p>
-          ${p.description ? `<p class="text-xs text-slate-600 mt-2">${ProductCardUI.escapeHtml(p.description)}</p>` : ''}
+          ${p.description ? `<p class="text-xs text-slate-600 mt-2 leading-relaxed">${ProductCardUI.escapeHtml(p.description)}</p>` : ''}
           ${variantsHTML}
           <div class="mt-5 space-y-2">
             <button type="button" id="modalAddToCartBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition">🛒 Añadir al carrito</button>
+            <a href="${ProductCardUI.buildWAUrl(p, null, p.price)}" target="_blank" rel="noopener noreferrer"
+               class="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 rounded-xl text-xs transition shadow flex items-center justify-center gap-2">Pedir por WhatsApp</a>
           </div>
         </div>`;
 
@@ -561,7 +750,7 @@
         if (window.PasajeCart) {
           window.PasajeCart.addToCart({
             id: p.id, title: p.title, price: p.price, image_url: p.image_url,
-            storeId: p.store_id, storeName: p.stores?.name || p.store_name, storeWhatsapp: p.stores?.whatsapp || p.store_whatsapp
+            storeId: p.store_id, storeName: p.store_name, storeWhatsapp: p.store_whatsapp
           });
           productModal.classList.add('hidden'); document.body.style.overflow = '';
         }
