@@ -60,14 +60,14 @@
 
   function renderCardHTML(p, options = {}) {
     const placeholder = window.PLACEHOLDER_IMG || 'img/placeholder.png';
-    const img = p.image_url || placeholder;
+    const img = p.image_url || (Array.isArray(p.images) && p.images[0]) || placeholder;
     const isFav = window.Favorites ? window.Favorites.has(p.id) : false;
     const isOutOfStock = !p.is_active || p.stock_quantity === 0;
     const waUrl = buildWAUrl(p);
     const heartSvg = window.heartSVG ? window.heartSVG(isFav) : '❤️';
     const isFeaturedView = !!options.isFeatured;
     const hasVariants = Array.isArray(p.variants) && p.variants.length > 0;
-    const hasGallery = Array.isArray(p.images) && p.images.length > 1;
+    const hasGallery = (Array.isArray(p.images) && p.images.length > 1) || (Array.isArray(p.image_urls) && p.image_urls.length > 0);
 
     const isOnSale = p.is_on_sale && (!p.sale_expires_at || new Date(p.sale_expires_at) > new Date());
     

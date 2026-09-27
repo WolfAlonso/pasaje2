@@ -170,15 +170,43 @@
 
     <section id="content" class="hidden">
       <div class="mb-4 bg-white p-4 rounded-xl border border-slate-200">
-        <h1 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">🎴 Componentes y Tarjetas de Producto</h1>
-        <p class="text-xs text-slate-500 mt-0.5">Configura la ergonomía, tipografía y estilo visual exclusivo de las tarjetas de producto de la tienda.</p>
+        <h1 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">🎴 Componentes y Banners Publicitarios</h1>
+        <p class="text-xs text-slate-500 mt-0.5">Configura el Carrusel Hero de la portada pública y el estilo de las tarjetas de producto.</p>
       </div>
 
       <div class="design-layout">
         <div>
 
-          <!-- CARRUSEL 20 PRESETS DE COMPONENTES DIVIDIDO EN 2 PESTAÑAS -->
+          <!-- GESTIÓN DE BANNERS PUBLICITARIOS (FASE 13) -->
           <details class="panel-section" open>
+            <summary>
+              <span class="sec-icon">🖼️</span> Gestión de Banners Publicitarios (Hero Carousel)
+              <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="panel-body space-y-4">
+
+              <!-- Encabezado y Botón Crear -->
+              <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <p class="text-xs font-bold text-slate-800">Banners Activos para Portada</p>
+                  <p class="text-[11px] text-slate-500">Administra las imágenes y enlaces interactivos estilo Kemik / Pacifiko.</p>
+                </div>
+                <button type="button" id="openCreateBannerBtn"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1">
+                  <span>+</span> <span>Nuevo Banner</span>
+                </button>
+              </div>
+
+              <!-- Lista de Banners -->
+              <div id="bannersAdminList" class="space-y-3">
+                <p class="text-xs text-slate-500 text-center py-4">Cargando banners...</p>
+              </div>
+
+            </div>
+          </details>
+
+          <!-- CARRUSEL 20 PRESETS DE COMPONENTES DIVIDIDO EN 2 PESTAÑAS -->
+          <details class="panel-section">
             <summary>
               <span class="sec-icon">👓</span>
               20 Presets para Tarjetas de Productos
@@ -307,7 +335,7 @@
           </details>
 
           <!-- 1. TARJETAS DE PRODUCTO -->
-          <details class="panel-section" open>
+          <details class="panel-section">
             <summary>
               <span class="sec-icon">🎴</span> Estilo de Tarjetas de Producto
               <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -375,7 +403,7 @@
           </details>
 
           <!-- 2. TIPOGRAFÍA DE TARJETAS -->
-          <details class="panel-section" open>
+          <details class="panel-section">
             <summary>
               <span class="sec-icon">🔤</span> Tipografía Independiente de Tarjetas
               <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -526,9 +554,99 @@
     </section>
   </main>
 
-  <div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] bg-emerald-600 text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-2xl transition-opacity duration-300"></div>
+  <!-- MODAL CREAR / EDITAR BANNER (ADMIN CON SELECCIÓN RÁPIDA DE SUGERENCIAS) -->
+  <div id="bannerModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[80] flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto border border-slate-200">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 id="bannerModalTitle" class="text-base font-extrabold text-slate-900">🖼️ Agregar Banner Publicitario</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Configura la imagen, orden y redirección del slide</p>
+        </div>
+        <button type="button" id="closeBannerModalBtn"
+          class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center">✕</button>
+      </div>
+
+      <form id="bannerAdminForm" class="p-5 space-y-4">
+        <input type="hidden" id="bannerId">
+
+        <!-- Imagen del Banner -->
+        <div>
+          <label class="field-label">Imagen del Banner *</label>
+          <div class="flex gap-2 mb-2">
+            <input type="text" id="bannerImageUrl" required placeholder="https://ejemplo.com/banner.jpg" class="input-text text-xs">
+            <label class="bg-slate-800 hover:bg-black text-white font-bold text-xs px-3 py-2 rounded-lg cursor-pointer transition flex items-center justify-center flex-shrink-0">
+              <span>Subir</span>
+              <input type="file" id="bannerFileInput" accept="image/*" class="hidden">
+            </label>
+          </div>
+          <div id="bannerImgPreview" class="hidden rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-[21/9] relative">
+            <img id="bannerImgPreviewEl" src="" class="w-full h-full object-cover">
+          </div>
+        </div>
+
+        <!-- Título y Subtítulo -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="field-label">Título Principal (Opcional)</label>
+            <input type="text" id="bannerTitle" placeholder="Ej. ¡Grandes Ofertas de Xela!" class="input-text text-xs font-semibold">
+          </div>
+          <div>
+            <label class="field-label">Subtítulo / Bajada (Opcional)</label>
+            <input type="text" id="bannerSubtitle" placeholder="Ej. Hasta 30% OFF en repostería local" class="input-text text-xs">
+          </div>
+        </div>
+
+        <!-- Tipo de Enlace y Destino con Sugerencias Dinámicas -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="field-label">Tipo de Redirección (link_type) *</label>
+            <select id="bannerLinkType" required class="input-text text-xs font-bold bg-white">
+              <option value="category">🏷️ Categoría (Slug)</option>
+              <option value="store">🏪 Tienda (Slug)</option>
+              <option value="product">📦 Producto (ID / Quick View)</option>
+              <option value="external">🌐 Enlace Externo (URL)</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Valor / Destino (link_value) *</label>
+            <!-- Dropdown de Selección Rápida con Datos de Supabase -->
+            <select id="bannerLinkQuickSelect" class="input-text text-xs font-bold bg-emerald-50 border-emerald-300 text-emerald-900 mb-1.5 hidden">
+              <option value="">-- Selecciona una opción sugerida --</option>
+            </select>
+            <input type="text" id="bannerLinkValue" required placeholder="Ej. panaderia, mi-tienda, ID, https://..." class="input-text text-xs font-mono">
+          </div>
+        </div>
+
+        <!-- Orden y Estado -->
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <div>
+            <label class="field-label">Prioridad de Orden (sort_order)</label>
+            <input type="number" id="bannerSortOrder" value="1" min="1" step="1" class="input-text text-xs font-bold">
+          </div>
+          <div class="flex items-center pt-5">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="bannerIsActive" checked class="w-4 h-4 accent-emerald-600 rounded">
+              <span class="text-xs font-bold text-slate-800">✅ Banner Activo</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-3 border-t">
+          <button type="button" id="cancelBannerBtn" class="btn btn-ghost flex-1 text-xs">Cancelar</button>
+          <button type="submit" id="saveBannerBtn" class="btn btn-primary flex-1 text-xs">Guardar Banner</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[90] bg-emerald-600 text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-2xl transition-opacity duration-300"></div>
 
   <script>
+    let adminBanners = [];
+    let cachedCategories = [];
+    let cachedStores = [];
+    let cachedProducts = [];
+
     const COMPONENT_PRESETS = {
       1: { tint: '#FDF6E2', opacity: 90, heading: '#451A03', text: '#78350F', muted: '#92400E', badgeBg: '#D97706', badgeText: '#FFFFFF' },
       2: { tint: '#1E293B', opacity: 85, heading: '#F8FAFC', text: '#E2E8F0', muted: '#94A3B8', badgeBg: '#14B8A6', badgeText: '#FFFFFF' },
@@ -564,8 +682,373 @@
       bindColorPairs();
       bindInputs();
       bindActions();
+      bindBannerAdminEvents();
       loadSettings();
+      await Promise.all([ loadAdminBanners(), preloadLinkOptions() ]);
     })();
+
+    // =============================================================
+    // PRECARGA DE SUGERENCIAS DESDE SUPABASE (CATEGORÍAS, TIENDAS, PRODUCTOS)
+    // =============================================================
+    async function preloadLinkOptions() {
+      if (cachedCategories.length && cachedStores.length && cachedProducts.length) return;
+      try {
+        const [catRes, storeRes, prodRes] = await Promise.all([
+          _supabase.from('categories').select('id, name, slug, icon').order('name'),
+          _supabase.from('stores').select('id, name, slug').eq('is_active', true).order('name'),
+          _supabase.from('products').select('id, title, price').eq('is_active', true).order('title').limit(150)
+        ]);
+        cachedCategories = catRes.data || [];
+        cachedStores = storeRes.data || [];
+        cachedProducts = prodRes.data || [];
+      } catch (err) {
+        console.warn('[AdminBanners] Error precargando opciones de enlaces:', err);
+      }
+    }
+
+    function updateLinkValueOptions(selectedType, currentValue = '') {
+      const selectEl = document.getElementById('bannerLinkQuickSelect');
+      if (!selectEl) return;
+
+      selectEl.innerHTML = '<option value="">-- Selecciona una opción sugerida --</option>';
+
+      if (selectedType === 'category') {
+        selectEl.classList.remove('hidden');
+        cachedCategories.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.slug || '';
+          opt.textContent = `${c.icon || '🏷️'} ${c.name} (${c.slug})`;
+          if (c.slug === currentValue) opt.selected = true;
+          selectEl.appendChild(opt);
+        });
+      } else if (selectedType === 'store') {
+        selectEl.classList.remove('hidden');
+        cachedStores.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.slug || '';
+          opt.textContent = `🏪 ${s.name} (${s.slug})`;
+          if (s.slug === currentValue) opt.selected = true;
+          selectEl.appendChild(opt);
+        });
+      } else if (selectedType === 'product') {
+        selectEl.classList.remove('hidden');
+        cachedProducts.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `📦 ${p.title} - Q${parseFloat(p.price || 0).toFixed(2)} (ID: ${p.id})`;
+          if (String(p.id) === String(currentValue)) opt.selected = true;
+          selectEl.appendChild(opt);
+        });
+      } else {
+        selectEl.classList.add('hidden');
+      }
+    }
+
+    // =============================================================
+    // GESTIÓN DE BANNERS EN ADMIN (FASE 13)
+    // =============================================================
+    async function loadAdminBanners() {
+      const listEl = document.getElementById('bannersAdminList');
+      if (!listEl) return;
+
+      try {
+        const { data, error } = await _supabase
+          .from('banners')
+          .select('*')
+          .order('sort_order', { ascending: true });
+
+        if (error) throw error;
+        adminBanners = data || [];
+        renderAdminBannersList();
+      } catch (err) {
+        console.warn('[AdminBanners] Error al cargar banners:', err.message);
+        listEl.innerHTML = `<p class="text-xs text-rose-500 text-center py-4">No se pudo consultar la tabla 'banners'. Revisa Supabase.</p>`;
+      }
+    }
+
+    function renderAdminBannersList() {
+      const listEl = document.getElementById('bannersAdminList');
+      if (!listEl) return;
+
+      if (adminBanners.length === 0) {
+        listEl.innerHTML = `
+          <div class="text-center py-6 bg-slate-50 border border-dashed rounded-xl">
+            <p class="text-2xl mb-1">🖼️</p>
+            <p class="text-xs font-bold text-slate-700">No hay banners publicitarios registrados</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">Haz clic en "Nuevo Banner" para agregar el primero al Hero Carousel.</p>
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = adminBanners.map((b, idx) => {
+        const title = b.title || 'Sin Título';
+        const img = b.image_url || 'https://via.placeholder.com/600x200?text=Banner';
+        const typeLabels = {
+          category: '🏷️ Categoría',
+          store: '🏪 Tienda',
+          product: '📦 Producto',
+          external: '🌐 Enlace Externo'
+        };
+        const typeLabel = typeLabels[b.link_type] || b.link_type || '🌐 Enlace';
+
+        return `
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-emerald-500 transition">
+            <div class="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+              <div class="w-24 h-12 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0 border">
+                <img src="${img}" alt="${title}" class="w-full h-full object-cover">
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h4 class="font-extrabold text-xs text-slate-900 truncate">${title}</h4>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${b.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">
+                    ${b.is_active ? '✅ Activo' : '⏸️ Pausado'}
+                  </span>
+                  <span class="text-[10px] font-mono bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded font-bold">Orden #${b.sort_order || 1}</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-0.5 truncate">
+                  ${typeLabel}: <span class="font-mono text-slate-700">${b.link_value || 'N/A'}</span>
+                </p>
+              </div>
+            </div>
+
+            <!-- Acciones por Delegación de Eventos -->
+            <div class="flex items-center gap-1.5 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0">
+              <button type="button" data-action="move-up" data-id="${b.id}" ${idx === 0 ? 'disabled' : ''} class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg text-xs font-bold disabled:opacity-30">▲</button>
+              <button type="button" data-action="move-down" data-id="${b.id}" ${idx === adminBanners.length - 1 ? 'disabled' : ''} class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg text-xs font-bold disabled:opacity-30">▼</button>
+              <button type="button" data-action="toggle-active" data-id="${b.id}" data-active="${!b.is_active}" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-2.5 py-1.5 rounded-lg">
+                ${b.is_active ? 'Pausar' : 'Activar'}
+              </button>
+              <button type="button" data-action="edit" data-id="${b.id}" class="bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs px-2.5 py-1.5 rounded-lg">Editar</button>
+              <button type="button" data-action="delete" data-id="${b.id}" class="bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-xs px-2.5 py-1.5 rounded-lg">🗑️</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function bindBannerAdminEvents() {
+      const openBtn = document.getElementById('openCreateBannerBtn');
+      const closeBtn = document.getElementById('closeBannerModalBtn');
+      const cancelBtn = document.getElementById('cancelBannerBtn');
+      const modal = document.getElementById('bannerModal');
+      const form = document.getElementById('bannerAdminForm');
+      const imgInput = document.getElementById('bannerImageUrl');
+      const fileInput = document.getElementById('bannerFileInput');
+      const linkTypeSelect = document.getElementById('bannerLinkType');
+      const linkQuickSelect = document.getElementById('bannerLinkQuickSelect');
+      const linkValueInput = document.getElementById('bannerLinkValue');
+      const listEl = document.getElementById('bannersAdminList');
+
+      // Delegación de Eventos de la Lista
+      listEl?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+
+        if (action === 'move-up') {
+          await moveBannerOrder(id, -1);
+        } else if (action === 'move-down') {
+          await moveBannerOrder(id, 1);
+        } else if (action === 'toggle-active') {
+          const nextActive = btn.dataset.active === 'true';
+          await toggleBannerActive(id, nextActive);
+        } else if (action === 'edit') {
+          await openBannerModal(id);
+        } else if (action === 'delete') {
+          await deleteBanner(id);
+        }
+      });
+
+      openBtn?.addEventListener('click', () => openBannerModal());
+      closeBtn?.addEventListener('click', closeBannerModal);
+      cancelBtn?.addEventListener('click', closeBannerModal);
+
+      imgInput?.addEventListener('input', (e) => updateBannerImgPreview(e.target.value));
+
+      // Sincronización de Sugerencias
+      linkTypeSelect?.addEventListener('change', (e) => {
+        updateLinkValueOptions(e.target.value);
+        linkValueInput.value = '';
+      });
+
+      linkQuickSelect?.addEventListener('change', (e) => {
+        if (e.target.value) {
+          linkValueInput.value = e.target.value;
+        }
+      });
+
+      fileInput?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+          showToast('⏳ Subiendo imagen...');
+          const ext = file.name.split('.').pop() || 'jpg';
+          const filename = `banner-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+
+          let publicUrl = null;
+          if (typeof window.uploadImage === 'function') {
+            publicUrl = await window.uploadImage(file, 'logos', 'public');
+          } else if (typeof window._supabase !== 'undefined') {
+            const { error: upErr } = await _supabase.storage.from('logos').upload(`public/${filename}`, file);
+            if (upErr) throw upErr;
+            const { data: pubData } = _supabase.storage.from('logos').getPublicUrl(`public/${filename}`);
+            publicUrl = pubData.publicUrl;
+          }
+
+          if (publicUrl) {
+            imgInput.value = publicUrl;
+            updateBannerImgPreview(publicUrl);
+            showToast('✅ Imagen cargada con éxito');
+          }
+        } catch (err) {
+          alert('Error al subir imagen: ' + err.message);
+        }
+      });
+
+      form?.addEventListener('submit', handleBannerFormSubmit);
+    }
+
+    function updateBannerImgPreview(url) {
+      const prevWrapper = document.getElementById('bannerImgPreview');
+      const prevImg = document.getElementById('bannerImgPreviewEl');
+      if (url && url.trim()) {
+        prevImg.src = url.trim();
+        prevWrapper.classList.remove('hidden');
+      } else {
+        prevWrapper.classList.add('hidden');
+      }
+    }
+
+    async function openBannerModal(bannerId = null) {
+      const modal = document.getElementById('bannerModal');
+      const form = document.getElementById('bannerAdminForm');
+      const titleEl = document.getElementById('bannerModalTitle');
+
+      await preloadLinkOptions();
+
+      form.reset();
+      document.getElementById('bannerId').value = '';
+      updateBannerImgPreview('');
+
+      if (bannerId) {
+        const b = adminBanners.find(x => String(x.id) === String(bannerId));
+        if (b) {
+          titleEl.textContent = '✏️ Editar Banner Publicitario';
+          document.getElementById('bannerId').value = b.id;
+          document.getElementById('bannerImageUrl').value = b.image_url || '';
+          document.getElementById('bannerTitle').value = b.title || '';
+          document.getElementById('bannerSubtitle').value = b.subtitle || '';
+          document.getElementById('bannerLinkType').value = b.link_type || 'category';
+          document.getElementById('bannerLinkValue').value = b.link_value || '';
+          document.getElementById('bannerSortOrder').value = b.sort_order || 1;
+          document.getElementById('bannerIsActive').checked = b.is_active !== false;
+          
+          updateLinkValueOptions(b.link_type || 'category', b.link_value || '');
+          updateBannerImgPreview(b.image_url);
+        }
+      } else {
+        titleEl.textContent = '🖼️ Agregar Banner Publicitario';
+        document.getElementById('bannerSortOrder').value = adminBanners.length + 1;
+        updateLinkValueOptions('category');
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeBannerModal() {
+      document.getElementById('bannerModal').classList.add('hidden');
+    }
+
+    async function handleBannerFormSubmit(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById('saveBannerBtn');
+      saveBtn.disabled = true; saveBtn.textContent = 'Guardando...';
+
+      try {
+        const id = document.getElementById('bannerId').value;
+        const payload = {
+          image_url: document.getElementById('bannerImageUrl').value.trim(),
+          title: document.getElementById('bannerTitle').value.trim() || null,
+          subtitle: document.getElementById('bannerSubtitle').value.trim() || null,
+          link_type: document.getElementById('bannerLinkType').value,
+          link_value: document.getElementById('bannerLinkValue').value.trim(),
+          sort_order: parseInt(document.getElementById('bannerSortOrder').value, 10) || 1,
+          is_active: document.getElementById('bannerIsActive').checked
+        };
+
+        if (id) {
+          const { error } = await _supabase.from('banners').update(payload).eq('id', id);
+          if (error) throw error;
+          showToast('✅ Banner actualizado correctamente');
+        } else {
+          const { error } = await _supabase.from('banners').insert([payload]);
+          if (error) throw error;
+          showToast('🎉 Banner creado con éxito');
+        }
+
+        closeBannerModal();
+        await loadAdminBanners();
+      } catch (err) {
+        alert('Error al guardar el banner: ' + err.message);
+      } finally {
+        saveBtn.disabled = false; saveBtn.textContent = 'Guardar Banner';
+      }
+    }
+
+    async function toggleBannerActive(id, newStatus) {
+      try {
+        const { error } = await _supabase.from('banners').update({ is_active: newStatus }).eq('id', id);
+        if (error) throw error;
+        showToast(newStatus ? '✅ Banner activado' : '⏸️ Banner pausado');
+        await loadAdminBanners();
+      } catch (err) {
+        alert('Error al cambiar estado: ' + err.message);
+      }
+    }
+
+    async function moveBannerOrder(id, delta) {
+      const idx = adminBanners.findIndex(x => String(x.id) === String(id));
+      if (idx === -1) return;
+      const targetIdx = idx + delta;
+      if (targetIdx < 0 || targetIdx >= adminBanners.length) return;
+
+      const currentB = adminBanners[idx];
+      const targetB = adminBanners[targetIdx];
+
+      const tempOrder = currentB.sort_order || (idx + 1);
+      currentB.sort_order = targetB.sort_order || (targetIdx + 1);
+      targetB.sort_order = tempOrder;
+
+      try {
+        await Promise.all([
+          _supabase.from('banners').update({ sort_order: currentB.sort_order }).eq('id', currentB.id),
+          _supabase.from('banners').update({ sort_order: targetB.sort_order }).eq('id', targetB.id)
+        ]);
+        showToast('↔️ Orden actualizado');
+        await loadAdminBanners();
+      } catch (err) {
+        console.warn('Error reordenando:', err);
+      }
+    }
+
+    async function deleteBanner(id) {
+      if (!confirm('¿Estás seguro de eliminar este banner publicitario?')) return;
+      try {
+        const { error } = await _supabase.from('banners').delete().eq('id', id);
+        if (error) throw error;
+        showToast('🗑️ Banner eliminado');
+        await loadAdminBanners();
+      } catch (err) {
+        alert('Error al eliminar: ' + err.message);
+      }
+    }
+
+    window.openBannerModal = openBannerModal;
+    window.toggleBannerActive = toggleBannerActive;
+    window.moveBannerOrder = moveBannerOrder;
+    window.deleteBanner = deleteBanner;
 
     function scrollCarousel(amount) {
       document.getElementById('presetsCompTrack').scrollBy({ left: amount, behavior: 'smooth' });

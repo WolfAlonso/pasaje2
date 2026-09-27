@@ -1,6 +1,6 @@
 // =============================================================
 // /js/services/products-service.js
-// Servicio de consulta de productos, verificación de tiendas y ofertas relámpago
+// Servicio de consulta de productos, verificación de tiendas, ofertas relámpago y banners
 // =============================================================
 
 (function () {
@@ -13,21 +13,36 @@
     const s = p.stores || {};
     const c = p.categories || {};
 
-    let gallery = [];
+    const rawMainImg = p.image_url || null;
+    const allImages = [];
+
+    if (rawMainImg) allImages.push(rawMainImg);
+
+    let secondaryImgs = [];
+    if (Array.isArray(p.image_urls)) {
+      secondaryImgs = p.image_urls.filter(Boolean);
+    } else if (typeof p.image_urls === 'string') {
+      try {
+        const parsed = JSON.parse(p.image_urls);
+        if (Array.isArray(parsed)) secondaryImgs = parsed.filter(Boolean);
+      } catch (e) {}
+    }
+
     if (Array.isArray(p.product_images) && p.product_images.length > 0) {
-      gallery = p.product_images
+      const relImgs = p.product_images
         .slice()
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
         .map(img => img.image_url)
         .filter(Boolean);
+      relImgs.forEach(u => { if (!secondaryImgs.includes(u)) secondaryImgs.push(u); });
     }
 
-    const mainImg = p.image_url || null;
-    const allImages = [];
-    if (mainImg) allImages.push(mainImg);
-    gallery.forEach(url => {
+    secondaryImgs.forEach(url => {
       if (url && !allImages.includes(url)) allImages.push(url);
     });
+
+    const mainImg = allImages.length > 0 ? allImages[0] : null;
+    const gallerySecondary = allImages.length > 1 ? allImages.slice(1) : [];
 
     let variants = [];
     if (Array.isArray(p.product_variants)) {
@@ -52,6 +67,13 @@
           effectivePrice = effectiveOriginalPrice;
           effectiveOriginalPrice = null;
         }
+        if (p.id && typeof window._supabase !== 'undefined') {
+          window._supabase.from('products').update({
+            is_on_sale: false,
+            price: effectivePrice,
+            original_price: null
+          }).eq('id', p.id).then(() => {}).catch(() => {});
+        }
       }
     }
 
@@ -64,6 +86,7 @@
       is_on_sale: effectiveIsOnSale,
       sale_expires_at: p.sale_expires_at || null,
       image_url: mainImg,
+      image_urls: gallerySecondary,
       images: allImages.length > 0 ? allImages : (mainImg ? [mainImg] : []),
       variants: variants,
       is_featured: !!p.is_featured,
@@ -107,7 +130,7 @@
     const to = from + limit - 1;
 
     let selectQuery = `
-      id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, is_featured, is_active,
+      id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, image_urls, is_featured, is_active,
       stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
       store_id, category_id, created_at,
       stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
@@ -118,7 +141,7 @@
 
     if (categorySlug && categorySlug !== 'todas') {
       selectQuery = `
-        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, is_featured, is_active,
+        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, image_urls, is_featured, is_active,
         stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
         store_id, category_id, created_at,
         stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
@@ -195,7 +218,7 @@
     const { data, error } = await window._supabase
       .from('products')
       .select(`
-        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, is_featured, is_active,
+        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, image_urls, is_featured, is_active,
         stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
         store_id, category_id, created_at,
         stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
@@ -216,7 +239,7 @@
       return [];
     }
 
-    return (data || []).map(normalizeProduct);
+    return (data || []).map(normalizeProduct).filter(p => p && p.is_on_sale);
   }
 
   async function searchPredictive(term, limit = 6) {
@@ -228,7 +251,7 @@
     const { data, error } = await window._supabase
       .from('products')
       .select(`
-        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, is_featured, is_active,
+        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, image_urls, is_featured, is_active,
         stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
         store_id, category_id, created_at,
         stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
@@ -260,7 +283,7 @@
     const { data, error } = await window._supabase
       .from('products')
       .select(`
-        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, is_featured, is_active,
+        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, image_urls, is_featured, is_active,
         stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
         store_id, category_id, created_at,
         stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
@@ -325,6 +348,27 @@
     return data;
   }
 
+  async function fetchActiveBanners() {
+    if (typeof window._supabase === 'undefined') return [];
+    try {
+      const { data, error } = await window._supabase
+        .from('banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('[ProductsService] Error al obtener banners activos:', error.message);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      console.warn('[ProductsService] Excepción al obtener banners:', err);
+      return [];
+    }
+  }
+
   window.ProductsService = {
     PAGE_SIZE,
     getProducts: fetchProducts,
@@ -334,6 +378,7 @@
     fetchProductReviews,
     fetchStoreReviews,
     addReview,
+    fetchActiveBanners,
     normalizeProduct
   };
 })();

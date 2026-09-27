@@ -3,79 +3,100 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Usuarios · Admin</title>
+  <title>Gestión de Usuarios y Vendedores · Admin</title>
   <meta name="theme-color" content="#1e3a8a">
   <link rel="manifest" href="../manifest.json">
   <link rel="icon" href="../img/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase.js"></script>
-  <script src="../js/theme-loader.js?v=2"></script>
-  <script src="../js/admin-utils.js"></script>
-  <script src="../js/admin-sidebar.js?v=1"></script>
+  <script src="../js/theme-loader.js?v=4"></script>
+  <script src="../js/admin-utils.js?v=6"></script>
+  <script src="../js/admin-sidebar.js?v=2"></script>
+  <script src="../js/liquid-glass.js?v=2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Inter', sans-serif; }</style>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    .glass-container {
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-slate-100 min-h-screen text-slate-800">
 
   <div id="adminHeader"></div>
 
-  <main class="max-w-7xl mx-auto p-4">
+  <main class="max-w-7xl mx-auto p-4 pb-16">
     <div id="adminTabs"></div>
 
-    <div id="loadingState" class="bg-white rounded-xl shadow-sm border p-8 text-center text-sm text-gray-500">Cargando...</div>
+    <div id="loadingState" class="glass-container rounded-2xl p-8 text-center text-sm text-slate-500 shadow-sm">
+      Cargando panel de usuarios y vendedores...
+    </div>
 
-    <section id="content" class="hidden space-y-4">
+    <section id="content" class="hidden space-y-5">
 
+      <!-- TARJETAS DE ESTADÍSTICAS -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div class="bg-white rounded-xl shadow-sm border p-4">
-          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total usuarios</p>
-          <p id="statTotal" class="text-2xl font-extrabold text-gray-800 mt-1">—</p>
+        <div class="glass-container rounded-2xl p-4 shadow-sm border border-slate-200/80">
+          <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Registrados</p>
+          <p id="statTotal" class="text-2xl font-black text-slate-800 mt-1">—</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border p-4">
-          <p class="text-xs font-semibold text-purple-700 uppercase tracking-wider">🛡️ Admins</p>
-          <p id="statAdmins" class="text-2xl font-extrabold text-purple-600 mt-1">—</p>
+        <div class="glass-container rounded-2xl p-4 shadow-sm border border-purple-200/80 bg-purple-50/30">
+          <p class="text-[11px] font-bold text-purple-700 uppercase tracking-wider">🛡️ Administradores</p>
+          <p id="statAdmins" class="text-2xl font-black text-purple-700 mt-1">—</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border p-4">
-          <p class="text-xs font-semibold text-blue-700 uppercase tracking-wider">🏪 Con tienda</p>
-          <p id="statWithStore" class="text-2xl font-extrabold text-blue-600 mt-1">—</p>
+        <div class="glass-container rounded-2xl p-4 shadow-sm border border-blue-200/80 bg-blue-50/30">
+          <p class="text-[11px] font-bold text-blue-700 uppercase tracking-wider">🏪 Con Tienda Activa</p>
+          <p id="statWithStore" class="text-2xl font-black text-blue-700 mt-1">—</p>
         </div>
-        <div class="bg-white rounded-xl shadow-sm border p-4">
-          <p class="text-xs font-semibold text-gray-700 uppercase tracking-wider">👤 Sin perfil</p>
-          <p id="statNoProfile" class="text-2xl font-extrabold text-gray-600 mt-1">—</p>
+        <div class="glass-container rounded-2xl p-4 shadow-sm border border-rose-200/80 bg-rose-50/30">
+          <p class="text-[11px] font-bold text-rose-700 uppercase tracking-wider">🚫 Suspendidos / Pausados</p>
+          <p id="statSuspended" class="text-2xl font-black text-rose-600 mt-1">—</p>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm border p-4">
-        <div class="flex flex-col sm:flex-row gap-2">
+      <!-- BARRA DE BÚSQUEDA Y ACCIÓN DE CREACIÓN -->
+      <div class="glass-container rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-1">
           <div class="relative flex-1">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="h-4 w-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
             </div>
-            <input id="userSearch" type="text" placeholder="Buscar por email, nombre, teléfono o ID..."
-              class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+            <input id="userSearch" type="text" placeholder="Buscar por nombre, email, teléfono o tienda..."
+              class="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none bg-white">
           </div>
           <select id="userFilter"
-            class="border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-amber-500 outline-none">
-            <option value="all">Todos</option>
-            <option value="admins">🛡️ Solo admins</option>
-            <option value="no-admin">👤 No admins</option>
-            <option value="with-store">🏪 Con tienda</option>
-            <option value="no-store">🚫 Sin tienda</option>
+            class="border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold bg-white focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer">
+            <option value="all">Todos los usuarios</option>
+            <option value="admins">🛡️ Solo Administradores</option>
+            <option value="vendedores">🏪 Solo Vendedores (Con Tienda)</option>
+            <option value="no-store">👤 Sin Tienda Asignada</option>
+            <option value="suspended">🚫 Cuentas Suspendidas</option>
           </select>
         </div>
+
+        <button id="btnCreateUser" type="button"
+          class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-2">
+          <span>➕</span>
+          <span>Crear Nuevo Usuario / Vendedor</span>
+        </button>
       </div>
 
-      <div id="usersList" class="bg-white rounded-xl shadow-sm border overflow-hidden divide-y">
-        <p class="p-8 text-center text-sm text-gray-500">Cargando usuarios...</p>
+      <!-- LISTADO TABULAR DE USUARIOS -->
+      <div id="usersList" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden divide-y divide-slate-100">
+        <p class="p-8 text-center text-sm text-slate-500">Cargando usuarios...</p>
       </div>
     </section>
   </main>
 
-  <div id="userModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto">
+  <!-- MODAL DE CREACIÓN / EDICIÓN DE USUARIO Y TIENDA -->
+  <div id="userModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto border border-slate-100">
       <div id="userModalContent" class="p-6"></div>
     </div>
   </div>
@@ -83,6 +104,7 @@
   <script>
     let currentAdmin = null;
     let allUsers = [];
+    let allStores = [];
     let storeByUser = {};
     const modal = document.getElementById('userModal');
 
@@ -95,27 +117,36 @@
       document.getElementById('loadingState').classList.add('hidden');
       document.getElementById('content').classList.remove('hidden');
 
-      await Promise.all([loadStoresByUser(), loadUsers()]);
+      await reloadData();
 
       document.getElementById('userSearch').addEventListener('input', renderUsers);
       document.getElementById('userFilter').addEventListener('change', renderUsers);
+      document.getElementById('btnCreateUser').addEventListener('click', () => openUserModal(null));
     })();
 
-    async function loadStoresByUser() {
-      const { data } = await _supabase.from('stores').select('id, user_id, name, slug, is_suspended');
-      (data || []).forEach(s => { storeByUser[s.user_id] = s; });
+    async function reloadData() {
+      await Promise.all([loadStores(), loadUsers()]);
+    }
+
+    async function loadStores() {
+      const { data } = await _supabase.from('stores').select('id, user_id, name, slug, is_suspended, is_active, whatsapp, zone');
+      allStores = data || [];
+      storeByUser = {};
+      allStores.forEach(s => {
+        if (s.user_id) storeByUser[s.user_id] = s;
+      });
     }
 
     async function loadUsers() {
       const container = document.getElementById('usersList');
-      container.innerHTML = '<p class="p-8 text-center text-sm text-gray-500">Cargando usuarios...</p>';
+      container.innerHTML = '<p class="p-8 text-center text-sm text-slate-500">Cargando lista de usuarios...</p>';
 
       const { data, error } = await _supabase.rpc('admin_list_users');
       if (error) {
         container.innerHTML = `
           <div class="p-8 text-center">
-            <p class="text-sm text-red-500">Error al cargar usuarios.</p>
-            <p class="text-xs text-gray-500 mt-1">Ejecuta el SQL de <code>admin_list_users()</code> actualizado.</p>
+            <p class="text-sm text-red-500 font-bold">Error al cargar usuarios.</p>
+            <p class="text-xs text-slate-500 mt-1">Verifica que la función RPC <code>admin_list_users()</code> esté instalada correctamente en Supabase.</p>
           </div>`;
         console.error(error);
         return;
@@ -129,12 +160,12 @@
       const total = allUsers.length;
       const admins = allUsers.filter(u => u.is_admin).length;
       const withStore = allUsers.filter(u => storeByUser[u.user_id]).length;
-      const noProfile = allUsers.filter(u => !u.display_name && !u.phone && !u.notes).length;
+      const suspended = allUsers.filter(u => storeByUser[u.user_id]?.is_suspended).length;
 
       document.getElementById('statTotal').textContent     = total;
       document.getElementById('statAdmins').textContent    = admins;
       document.getElementById('statWithStore').textContent = withStore;
-      document.getElementById('statNoProfile').textContent = noProfile;
+      document.getElementById('statSuspended').textContent = suspended;
     }
 
     function renderUsers() {
@@ -144,20 +175,21 @@
       const filter = document.getElementById('userFilter').value;
 
       const list = allUsers.filter(u => {
+        const store = storeByUser[u.user_id];
         if (filter === 'admins' && !u.is_admin) return false;
-        if (filter === 'no-admin' && u.is_admin) return false;
-        if (filter === 'with-store' && !storeByUser[u.user_id]) return false;
-        if (filter === 'no-store' && storeByUser[u.user_id]) return false;
+        if (filter === 'vendedores' && !store) return false;
+        if (filter === 'no-store' && store) return false;
+        if (filter === 'suspended' && (!store || !store.is_suspended)) return false;
 
         if (!term) return true;
         const haystack = [
-          u.email, u.user_id, u.display_name, u.phone, u.notes
+          u.email, u.user_id, u.display_name, u.phone, u.notes, store?.name
         ].filter(Boolean).join(' ').toLowerCase();
         return haystack.includes(term);
       });
 
       if (list.length === 0) {
-        container.innerHTML = '<p class="p-8 text-center text-sm text-gray-500">Sin resultados.</p>';
+        container.innerHTML = '<p class="p-8 text-center text-sm text-slate-500">No se encontraron usuarios coincidentes.</p>';
         return;
       }
 
@@ -165,170 +197,219 @@
         const isSelf = u.user_id === currentAdmin?.id;
         const store = storeByUser[u.user_id];
         const initial = (u.display_name || u.email || 'U').charAt(0).toUpperCase();
+        const regDate = u.created_at ? adminFormatDate(u.created_at) : '—';
 
         return `
-          <div class="p-4 hover:bg-gray-50">
+          <div class="p-4 hover:bg-slate-50/80 transition">
             <div class="flex items-start gap-3 flex-wrap">
-              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white flex items-center justify-center font-bold flex-shrink-0">
+              <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-800 to-indigo-900 text-amber-400 flex items-center justify-center font-black text-sm shadow-sm flex-shrink-0">
                 ${initial}
               </div>
 
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <h3 class="font-bold text-gray-800 truncate">${e(u.display_name || '(Sin nombre)')}</h3>
+                  <h3 class="font-extrabold text-slate-900 text-sm truncate">${e(u.display_name || '(Sin nombre asignado)')}</h3>
                   ${u.is_admin
-                    ? '<span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">🛡️ Admin</span>'
-                    : '<span class="text-[10px] bg-gray-100 text-gray-600 font-bold px-2 py-0.5 rounded-full">👤 Usuario</span>'}
-                  ${isSelf ? '<span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Tú</span>' : ''}
+                    ? '<span class="text-[10px] bg-purple-100 text-purple-800 font-black px-2 py-0.5 rounded-full border border-purple-200">🛡️ Admin</span>'
+                    : '<span class="text-[10px] bg-slate-100 text-slate-700 font-extrabold px-2 py-0.5 rounded-full border border-slate-200">👤 Vendedor</span>'}
+                  ${isSelf ? '<span class="text-[10px] bg-blue-100 text-blue-800 font-black px-2 py-0.5 rounded-full">Tu cuenta</span>' : ''}
                   ${store
-                    ? `<span class="text-[10px] ${store.is_suspended ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} font-bold px-2 py-0.5 rounded-full">
-                         🏪 ${e(store.name)}${store.is_suspended ? ' (suspendida)' : ''}
+                    ? `<span class="text-[10px] ${store.is_suspended ? 'bg-rose-100 text-rose-800 border-rose-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300'} font-extrabold px-2 py-0.5 rounded-full border">
+                         🏪 ${e(store.name)}${store.is_suspended ? ' (SUSPENDIDA)' : ' (Activa)'}
                        </span>`
-                    : ''}
+                    : '<span class="text-[10px] bg-amber-50 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">⚠️ Sin Tienda</span>'}
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 mt-1 text-xs text-gray-600">
-                  <p class="truncate">📧 ${e(u.email || 'Sin email')}</p>
-                  <p class="truncate">📱 ${e(u.phone || '—')}</p>
-                  <p class="truncate font-mono text-[10px] text-gray-400">${e(u.user_id)}</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 mt-1.5 text-xs text-slate-600 font-medium">
+                  <p class="truncate">📧 ${e(u.email || 'Sin email registrado')}</p>
+                  <p class="truncate">📱 ${e(u.phone || 'Sin teléfono')}</p>
+                  <p class="truncate text-[11px] text-slate-400">📅 Reg: ${regDate}</p>
                 </div>
 
-                ${u.notes ? `<p class="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded mt-1.5 inline-block">📝 ${e(u.notes.slice(0, 100))}${u.notes.length > 100 ? '…' : ''}</p>` : ''}
+                ${u.notes ? `<p class="text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200/60 px-2.5 py-1 rounded-lg mt-2 inline-block font-medium">📝 Nota: ${e(u.notes)}</p>` : ''}
               </div>
 
-              <div class="flex gap-1 flex-wrap flex-shrink-0">
+              <div class="flex items-center gap-1.5 flex-wrap flex-shrink-0">
                 <button data-user-edit="${u.user_id}"
-                  class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-3 py-1.5 rounded-lg transition">
+                  class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3 py-1.5 rounded-xl transition">
                   ✏️ Editar
                 </button>
-                <button data-user-toggle="${u.user_id}" ${isSelf ? 'disabled' : ''}
-                  class="text-xs font-semibold px-3 py-1.5 rounded-lg transition ${isSelf
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : (u.is_admin
-                        ? 'bg-red-50 hover:bg-red-100 text-red-600'
-                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700')}">
-                  ${u.is_admin ? 'Quitar admin' : 'Hacer admin'}
+
+                ${store ? `
+                  <button data-store-suspend="${store.id}" data-current-state="${store.is_suspended ? '1' : '0'}"
+                    class="text-xs font-bold px-3 py-1.5 rounded-xl transition ${store.is_suspended ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800' : 'bg-rose-100 hover:bg-rose-200 text-rose-800'}">
+                    ${store.is_suspended ? '✅ Reactivar Tienda' : '🚫 Suspender Tienda'}
+                  </button>
+                ` : ''}
+
+                <button data-user-delete="${u.user_id}" ${isSelf ? 'disabled' : ''}
+                  class="text-xs font-bold px-3 py-1.5 rounded-xl transition ${isSelf ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600'}"
+                  title="Eliminar usuario completamente de Supabase">
+                  🗑️
                 </button>
               </div>
             </div>
           </div>`;
       }).join('');
 
-      container.onclick = (ev) => {
+      container.onclick = async (ev) => {
         const editBtn = ev.target.closest('[data-user-edit]');
         if (editBtn) {
           ev.stopPropagation();
           openUserModal(editBtn.dataset.userEdit);
           return;
         }
-        const toggleBtn = ev.target.closest('[data-user-toggle]');
-        if (toggleBtn && !toggleBtn.disabled) {
+
+        const suspendBtn = ev.target.closest('[data-store-suspend]');
+        if (suspendBtn) {
           ev.stopPropagation();
-          toggleUserAdmin(toggleBtn);
+          const storeId = suspendBtn.dataset.storeSuspend;
+          const isSuspended = suspendBtn.dataset.currentState === '1';
+          await toggleStoreSuspension(storeId, !isSuspended);
+          return;
+        }
+
+        const deleteBtn = ev.target.closest('[data-user-delete]');
+        if (deleteBtn && !deleteBtn.disabled) {
+          ev.stopPropagation();
+          await deleteUserRecord(deleteBtn.dataset.userDelete);
         }
       };
     }
 
-    async function toggleUserAdmin(btn) {
-      const userId = btn.dataset.userToggle;
-      const user = allUsers.find(x => x.user_id === userId);
-      if (!user) return;
-      const newVal = !user.is_admin;
-      if (newVal && !confirm(`¿Dar permisos de administrador a ${user.email}?`)) return;
-      if (!newVal && !confirm(`¿Quitar permisos de administrador a ${user.email}?`)) return;
+    async function toggleStoreSuspension(storeId, suspend) {
+      const actionText = suspend ? 'SUSPENDER' : 'REACTIVAR';
+      if (!confirm(`¿Estás seguro de que deseas ${actionText} esta tienda?`)) return;
 
-      btn.disabled = true;
+      const { error } = await _supabase
+        .from('stores')
+        .update({ is_suspended: suspend })
+        .eq('id', storeId);
+
+      if (error) {
+        alert('Error al actualizar estado: ' + error.message);
+      } else {
+        await reloadData();
+      }
+    }
+
+    async function deleteUserRecord(userId) {
+      const u = allUsers.find(x => x.user_id === userId);
+      if (!u) return;
+
+      if (!confirm(`⚠️ ELIMINACIÓN DEFINITIVA:\n¿Estás seguro de que deseas ELIMINAR COMPLETAMENTE a "${u.email}"?\n\nEsta acción eliminará su cuenta de Supabase Auth, desvinculará su tienda y eliminará todos sus perfiles asociados.`)) return;
+
       try {
-        const { error } = await _supabase
-          .from('user_roles')
-          .update({ is_admin: newVal })
-          .eq('user_id', userId);
+        const { error } = await _supabase.rpc('admin_delete_user', {
+          target_user_id: userId
+        });
+
         if (error) throw error;
-        await loadUsers();
+
+        alert('Usuario eliminado exitosamente del sistema y de Supabase Auth.');
+        await reloadData();
       } catch (err) {
-        console.error(err);
-        alert('Error: ' + (err.message || 'desconocido'));
-        btn.disabled = false;
+        alert('Error durante la eliminación: ' + (err.message || err));
       }
     }
 
     // ---------------------------------------------------------
-    // Modal de edición de usuario
+    // MODAL DINÁMICO DE CREACIÓN Y EDICIÓN
     // ---------------------------------------------------------
     function openUserModal(userId) {
-      const u = allUsers.find(x => x.user_id === userId);
-      if (!u) return;
+      const isEditing = !!userId;
+      const u = isEditing ? allUsers.find(x => x.user_id === userId) : null;
       const e = adminEscapeHtml;
-      const store = storeByUser[u.user_id];
+      const currentStore = isEditing ? storeByUser[u.user_id] : null;
+
+      const storeOptionsHTML = allStores.map(s => {
+        const isAssignedToOther = s.user_id && s.user_id !== userId;
+        const assignedLabel = isAssignedToOther ? ' (Asignada a otro vendedor)' : '';
+        const selected = currentStore && currentStore.id === s.id ? 'selected' : '';
+        return `<option value="${s.id}" ${selected}>${e(s.name)}${assignedLabel}</option>`;
+      }).join('');
 
       document.getElementById('userModalContent').innerHTML = `
-        <div class="flex items-start justify-between mb-4">
-          <div class="min-w-0">
-            <h3 class="text-lg font-extrabold text-gray-800">Editar usuario</h3>
-            <p class="text-xs text-gray-500 mt-0.5 font-mono truncate">${e(u.user_id)}</p>
+        <div class="flex items-start justify-between mb-4 pb-3 border-b border-slate-100">
+          <div>
+            <h3 class="text-lg font-black text-slate-900">${isEditing ? 'Editar Usuario / Vendedor' : '➕ Crear Nuevo Usuario / Vendedor'}</h3>
+            <p class="text-xs text-slate-500 font-medium">${isEditing ? `ID: ${e(u.user_id)}` : 'Registra un nuevo usuario y conéctalo a una tienda'}</p>
           </div>
-          <button id="closeUserModalBtn"
-            class="bg-gray-100 hover:bg-gray-200 text-gray-700 w-9 h-9 rounded-lg flex items-center justify-center transition flex-shrink-0">✕</button>
+          <button id="closeUserModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition">✕</button>
         </div>
 
-        <div class="space-y-3">
+        <form id="userModalForm" class="space-y-4">
           <div>
-            <label class="block text-xs font-medium text-gray-700">Email (solo lectura)</label>
-            <input type="text" value="${e(u.email || '')}" disabled
-              class="w-full border border-gray-200 bg-gray-50 p-2 rounded-lg mt-1 text-sm text-gray-600">
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Correo Electrónico *</label>
+            <input type="email" id="modalEmail" required ${isEditing ? 'disabled' : ''} value="${isEditing ? e(u.email || '') : ''}"
+              placeholder="vendedor@pasajealtos.com"
+              class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500 ${isEditing ? 'bg-slate-50 text-slate-500' : ''}">
+          </div>
+
+          ${!isEditing ? `
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contraseña Inicial *</label>
+              <input type="password" id="modalPassword" required minlength="6" placeholder="Mínimo 6 caracteres"
+                class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+          ` : ''}
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre Completo</label>
+              <input type="text" id="modalDisplayName" value="${isEditing ? e(u.display_name || '') : ''}" placeholder="Ej. Juan Pérez"
+                class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Teléfono WhatsApp</label>
+              <input type="tel" id="modalPhone" value="${isEditing ? e(u.phone || '') : ''}" placeholder="Ej. 50255551234"
+                class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+          </div>
+
+          <!-- ASIGNACIÓN DE ROL -->
+          <div class="p-3.5 bg-purple-50/80 border border-purple-200/80 rounded-2xl flex items-center justify-between">
+            <div>
+              <span class="block text-xs font-black text-purple-900 uppercase">🛡️ Rol de Administrador General</span>
+              <span class="text-[11px] text-purple-700">Permite acceso completo a la Consola /admin/</span>
+            </div>
+            <input type="checkbox" id="modalIsAdmin" ${isEditing && u.is_admin ? 'checked' : ''} class="w-5 h-5 accent-purple-600 rounded cursor-pointer">
+          </div>
+
+          <!-- VINCULACIÓN DE TIENDA -->
+          <div class="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-2xl space-y-3">
+            <span class="block text-xs font-black text-blue-900 uppercase">🏪 Asignación / Vinculación de Tienda</span>
+            
+            <div>
+              <label class="block text-[11px] font-bold text-blue-800 uppercase mb-1">Seleccionar Tienda Existente</label>
+              <select id="modalStoreSelect" class="w-full border border-blue-200 p-2.5 rounded-xl text-xs font-bold bg-white text-slate-800 outline-none">
+                <option value="">-- Sin tienda vinculada --</option>
+                <option value="__NEW__">➕ Crear Nueva Tienda para este usuario</option>
+                ${storeOptionsHTML}
+              </select>
+            </div>
+
+            <div id="newStoreFields" class="hidden space-y-2 pt-2 border-t border-blue-200/60">
+              <label class="block text-[11px] font-bold text-blue-800 uppercase">Nombre de la Nueva Tienda *</label>
+              <input type="text" id="modalNewStoreName" placeholder="Ej. Panadería Los Altos"
+                class="w-full border border-blue-200 p-2.5 rounded-xl text-xs font-semibold bg-white outline-none">
+            </div>
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-gray-700">Nombre para mostrar</label>
-            <input type="text" id="editUserDisplayName" value="${e(u.display_name || '')}"
-              placeholder="Ej. María López"
-              class="w-full border border-gray-300 p-2 rounded-lg mt-1 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Notas Administrativas Internas</label>
+            <textarea id="modalNotes" rows="2" placeholder="Notas solo visibles para administradores..."
+              class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-medium bg-white outline-none focus:ring-2 focus:ring-amber-500">${isEditing ? e(u.notes || '') : ''}</textarea>
           </div>
 
-          <div>
-            <label class="block text-xs font-medium text-gray-700">Teléfono</label>
-            <input type="tel" id="editUserPhone" value="${e(u.phone || '')}" placeholder="Ej. 50255551234"
-              class="w-full border border-gray-300 p-2 rounded-lg mt-1 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-gray-700">Notas privadas (solo admin)</label>
-            <textarea id="editUserNotes" rows="3" placeholder="Anotaciones internas sobre este usuario..."
-              class="w-full border border-gray-300 p-2 rounded-lg mt-1 text-sm focus:ring-2 focus:ring-amber-500 outline-none">${e(u.notes || '')}</textarea>
-          </div>
-
-          ${store ? `
-            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-              <p class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-1">🏪 Tienda asociada</p>
-              <p class="text-sm font-bold text-gray-800">${e(store.name)}</p>
-              <a href="../tienda.html?slug=${encodeURIComponent(store.slug)}" target="_blank"
-                 class="text-xs text-emerald-700 hover:underline">Ver tienda →</a>
-            </div>` : ''}
-
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p class="text-[10px] font-bold text-blue-800 uppercase tracking-wider mb-1">🛡️ Rol de administrador</p>
-            <p class="text-xs text-blue-800 mb-2">Otorga o revoca el acceso al panel de administración.</p>
-            <button id="toggleAdminFromModalBtn" ${u.user_id === currentAdmin?.id ? 'disabled' : ''}
-              class="text-xs font-semibold px-3 py-2 rounded-lg transition ${u.user_id === currentAdmin?.id
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : (u.is_admin
-                    ? 'bg-red-50 hover:bg-red-100 text-red-600'
-                    : 'bg-emerald-500 hover:bg-emerald-600 text-white')}">
-              ${u.is_admin ? '🛡️ Quitar permisos de admin' : '🛡️ Otorgar permisos de admin'}
+          <div class="flex gap-2 pt-3 border-t border-slate-100">
+            <button type="button" id="cancelUserModalBtn" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition">Cancelar</button>
+            <button type="submit" id="saveUserModalBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow-sm">
+              ${isEditing ? 'Guardar Cambios' : 'Crear Usuario'}
             </button>
           </div>
-        </div>
-
-        <div class="flex gap-2 pt-4 mt-4 border-t">
-          <button id="cancelUserModalBtn"
-            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold text-sm px-5 py-2.5 rounded-lg transition">
-            Cancelar
-          </button>
-          <button id="saveUserModalBtn"
-            class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-6 py-2.5 rounded-lg transition disabled:opacity-60">
-            Guardar cambios
-          </button>
-        </div>
+        </form>
       `;
 
       modal.classList.remove('hidden');
@@ -337,77 +418,124 @@
       const closeFn = () => {
         modal.classList.add('hidden');
         document.body.style.overflow = '';
-        document.getElementById('userModalContent').innerHTML = '';
       };
 
-      document.getElementById('closeUserModalBtn').addEventListener('click', closeFn);
-      document.getElementById('cancelUserModalBtn').addEventListener('click', closeFn);
-      modal.addEventListener('click', (ev) => { if (ev.target === modal) closeFn(); }, { once: true });
+      document.getElementById('closeUserModalBtn').onclick = closeFn;
+      document.getElementById('cancelUserModalBtn').onclick = closeFn;
 
-      document.getElementById('saveUserModalBtn').addEventListener('click', async () => {
-        const btn = document.getElementById('saveUserModalBtn');
-        btn.disabled = true; btn.textContent = 'Guardando...';
-
-        try {
-          const display_name = document.getElementById('editUserDisplayName').value.trim() || null;
-          const phone = document.getElementById('editUserPhone').value.trim() || null;
-          const notes = document.getElementById('editUserNotes').value.trim() || null;
-
-          const { data, error } = await _supabase
-            .from('user_profiles')
-            .upsert([{
-              user_id: u.user_id,
-              display_name,
-              phone,
-              notes,
-              updated_at: new Date().toISOString(),
-            }], { onConflict: 'user_id' })
-            .select('user_id');
-
-          if (error) throw error;
-          if (!data || data.length === 0) {
-            throw new Error('La operación no afectó ninguna fila (posible RLS). Ejecuta el SQL de user_profiles.');
-          }
-
-          btn.textContent = '✅ Guardado';
-          setTimeout(() => { closeFn(); loadUsers(); }, 600);
-        } catch (err) {
-          console.error(err);
-          alert('Error al guardar: ' + (err.message || 'desconocido'));
-          btn.disabled = false; btn.textContent = 'Guardar cambios';
+      const storeSelect = document.getElementById('modalStoreSelect');
+      const newStoreFields = document.getElementById('newStoreFields');
+      storeSelect.addEventListener('change', () => {
+        if (storeSelect.value === '__NEW__') {
+          newStoreFields.classList.remove('hidden');
+        } else {
+          newStoreFields.classList.add('hidden');
         }
       });
 
-      const toggleBtn = document.getElementById('toggleAdminFromModalBtn');
-      if (toggleBtn && !toggleBtn.disabled) {
-        toggleBtn.addEventListener('click', async () => {
-          const newVal = !u.is_admin;
-          if (newVal && !confirm(`¿Dar permisos de administrador a ${u.email}?`)) return;
-          if (!newVal && !confirm(`¿Quitar permisos de administrador a ${u.email}?`)) return;
+      document.getElementById('userModalForm').onsubmit = async (evt) => {
+        evt.preventDefault();
+        const submitBtn = document.getElementById('saveUserModalBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Procesando...';
 
-          toggleBtn.disabled = true;
-          try {
-            const { error } = await _supabase
-              .from('user_roles')
-              .update({ is_admin: newVal })
-              .eq('user_id', u.user_id);
-            if (error) throw error;
-            closeFn();
-            await loadUsers();
-          } catch (err) {
-            console.error(err);
-            alert('Error: ' + (err.message || 'desconocido'));
-            toggleBtn.disabled = false;
+        try {
+          let targetUserId = userId;
+          const displayName = document.getElementById('modalDisplayName').value.trim() || null;
+          const phone = document.getElementById('modalPhone').value.trim() || null;
+          const isAdmin = document.getElementById('modalIsAdmin').checked;
+          const notes = document.getElementById('modalNotes').value.trim() || null;
+
+          if (!isEditing) {
+            const email = document.getElementById('modalEmail').value.trim();
+            const password = document.getElementById('modalPassword').value;
+
+            const tempSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+              auth: { persistSession: false }
+            });
+
+            const { data: authData, error: authError } = await tempSupabase.auth.signUp({
+              email,
+              password,
+              options: { data: { display_name: displayName, phone: phone } }
+            });
+
+            if (authError) throw authError;
+            if (!authData.user) throw new Error('No se pudo crear el usuario en Supabase Auth.');
+            targetUserId = authData.user.id;
           }
-        });
-      }
+
+          // Guardar perfil del usuario
+          const { error: profileErr } = await _supabase.from('user_profiles').upsert([{
+            user_id: targetUserId,
+            display_name: displayName,
+            phone: phone,
+            notes: notes,
+            updated_at: new Date().toISOString()
+          }], { onConflict: 'user_id' });
+          if (profileErr) throw new Error('Error al guardar perfil: ' + profileErr.message);
+
+          // Guardar rol del usuario
+          const { error: roleErr } = await _supabase.from('user_roles').upsert([{
+            user_id: targetUserId,
+            is_admin: isAdmin
+          }], { onConflict: 'user_id' });
+          if (roleErr) throw new Error('Error al guardar rol: ' + roleErr.message);
+
+          // Gestión y Vinculación de Tienda
+          const selectedStoreVal = storeSelect.value;
+          if (selectedStoreVal === '__NEW__') {
+            const storeName = document.getElementById('modalNewStoreName').value.trim();
+            if (!storeName) throw new Error('Ingresa un nombre para la nueva tienda.');
+            
+            const rawSlug = storeName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+            const storeSlug = rawSlug + '-' + Math.random().toString(36).substring(2, 6);
+
+            const { error: storeInsertErr } = await _supabase.from('stores').insert([{
+              user_id: targetUserId,
+              name: storeName,
+              slug: storeSlug,
+              owner_full_name: displayName || storeName,
+              whatsapp: phone || '',
+              zone: 'Zona 1',
+              has_physical_store: true,
+              is_active: true,
+              is_suspended: false,
+              plan_type: 'free'
+            }]);
+
+            if (storeInsertErr) {
+              throw new Error('Error al crear la tienda: ' + storeInsertErr.message);
+            }
+          } else if (selectedStoreVal) {
+            const { error: storeUpdateErr } = await _supabase
+              .from('stores')
+              .update({ user_id: targetUserId })
+              .eq('id', selectedStoreVal);
+            if (storeUpdateErr) throw new Error('Error al vincular tienda: ' + storeUpdateErr.message);
+          } else if (isEditing && currentStore) {
+            const { error: unbindErr } = await _supabase
+              .from('stores')
+              .update({ user_id: null })
+              .eq('id', currentStore.id);
+            if (unbindErr) throw new Error('Error al desvincular tienda: ' + unbindErr.message);
+          }
+
+          closeFn();
+          await reloadData();
+        } catch (err) {
+          alert('Error al procesar: ' + err.message);
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = isEditing ? 'Guardar Cambios' : 'Crear Usuario';
+        }
+      };
     }
 
     document.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' && !modal.classList.contains('hidden')) {
         modal.classList.add('hidden');
         document.body.style.overflow = '';
-        document.getElementById('userModalContent').innerHTML = '';
       }
     });
   </script>
