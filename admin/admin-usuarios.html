@@ -484,6 +484,16 @@
 
           // Gestión y Vinculación de Tienda
           const selectedStoreVal = storeSelect.value;
+          
+          // Si el usuario tenía previamente una tienda asignada diferente a la nueva seleccionada, la desvinculamos
+          if (isEditing && currentStore && currentStore.id !== selectedStoreVal) {
+            const { error: unbindOldErr } = await _supabase
+              .from('stores')
+              .update({ user_id: null })
+              .eq('id', currentStore.id);
+            if (unbindOldErr) throw new Error('Error al desvincular tienda anterior: ' + unbindOldErr.message);
+          }
+
           if (selectedStoreVal === '__NEW__') {
             const storeName = document.getElementById('modalNewStoreName').value.trim();
             if (!storeName) throw new Error('Ingresa un nombre para la nueva tienda.');
@@ -513,12 +523,6 @@
               .update({ user_id: targetUserId })
               .eq('id', selectedStoreVal);
             if (storeUpdateErr) throw new Error('Error al vincular tienda: ' + storeUpdateErr.message);
-          } else if (isEditing && currentStore) {
-            const { error: unbindErr } = await _supabase
-              .from('stores')
-              .update({ user_id: null })
-              .eq('id', currentStore.id);
-            if (unbindErr) throw new Error('Error al desvincular tienda: ' + unbindErr.message);
           }
 
           closeFn();
