@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pasaje Delivery · Repartidores</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase.js?v=4"></script>
+  <script src="../js/theme-loader.js?v=4"></script>
+  <script src="../js/dashboard-utils.js?v=4"></script>
+  <script src="../js/dashboard-sidebar.js?v=6"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+  <div id="dashboardHeader"></div>
+
+  <main class="max-w-6xl mx-auto p-4 pb-16 space-y-6">
+    <div id="dashboardTabs"></div>
+
+    <div id="loadingState" class="bg-white rounded-2xl p-8 text-center text-sm text-slate-500 shadow-sm">
+      Cargando panel de repartidor...
+    </div>
+
+    <section id="content" class="hidden space-y-6">
+
+      <!-- CARRERA EN CURSO -->
+      <div id="activeDeliverySection" class="hidden space-y-3 bg-emerald-50/50 p-4 rounded-3xl border-2 border-emerald-500 shadow-sm">
+        <div class="flex justify-between items-center">
+          <h2 class="font-black text-emerald-950 text-sm flex items-center gap-2">
+            <span class="animate-pulse">⚡</span> Carrera Activa en Cursado
+          </h2>
+          <span id="activeStatusBadge" class="bg-emerald-600 text-white font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">EN ROUTE</span>
+        </div>
+        
+        <div id="activeCard" class="bg-white p-4 rounded-2xl border text-xs space-y-3 shadow-xs"></div>
+
+        <!-- CHAT CON COMERCIO -->
+        <div class="bg-white p-4 rounded-2xl border space-y-3 shadow-xs">
+          <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+            <span>💬</span> Chat Directo con la Tienda
+          </h3>
+          <div id="driverChatMessages" class="h-36 overflow-y-auto p-3 bg-slate-50 border rounded-xl text-xs space-y-2"></div>
+          <form id="driverChatForm" class="flex gap-2">
+            <input type="text" id="driverChatMessageInput" required placeholder="Escribe un mensaje al comercio..." class="flex-1 border border-slate-200 px-3 py-2 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500" />
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm">Enviar</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- PESTAÑAS FEED VS HISTORIAL -->
+      <div class="bg-white p-1.5 rounded-2xl border shadow-sm grid grid-cols-2 gap-2 text-xs font-bold">
+        <button type="button" id="tabFeed" class="py-2.5 rounded-xl bg-slate-900 text-white shadow-sm transition">📢 Feed de Carreras</button>
+        <button type="button" id="tabHistory" class="py-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition">📜 Mi Historial</button>
+      </div>
+
+      <div id="feedSection" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <div id="historySection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+    </section>
+  </main>
+
+  <!-- MODAL PIN RECOLECCIÓN (TIENDA) -->
+  <div id="pickupPinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-xs w-full p-6 space-y-4 border border-slate-100 text-center">
+      <div class="w-12 h-12 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center text-2xl mx-auto font-bold shadow-sm">📌</div>
+      <div>
+        <h3 class="font-black text-slate-900 text-sm">PIN de Recolección en Tienda</h3>
+        <p class="text-[11px] text-slate-500 mt-1">Solicita el PIN de 4 dígitos al encargado del comercio para confirmar que recogiste el paquete.</p>
+      </div>
+      <input type="text" id="inputPickupPin" maxlength="4" placeholder="0000" class="w-full text-center text-2xl font-mono font-black tracking-widest border border-slate-300 p-2.5 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50" />
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="document.getElementById('pickupPinModal').classList.add('hidden')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs">Cancelar</button>
+        <button type="button" id="btnConfirmPickupPin" class="bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PIN ENTREGA (CLIENTE) -->
+  <div id="deliveryPinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-xs w-full p-6 space-y-4 border border-slate-100 text-center">
+      <div class="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-2xl flex items-center justify-center text-2xl mx-auto font-bold shadow-sm">🔐</div>
+      <div>
+        <h3 class="font-black text-slate-900 text-sm">PIN de Recepción del Cliente</h3>
+        <p class="text-[11px] text-slate-500 mt-1">Pide al cliente su PIN de 4 dígitos para completar la entrega de forma segura.</p>
+      </div>
+      <input type="text" id="inputDeliveryPin" maxlength="4" placeholder="0000" class="w-full text-center text-2xl font-mono font-black tracking-widest border border-slate-300 p-2.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="document.getElementById('deliveryPinModal').classList.add('hidden')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs">Cancelar</button>
+        <button type="button" id="btnConfirmDeliveryPin" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow">Entregar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL QUICK VIEW TIENDA -->
+  <div id="storeQuickViewModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-slate-100 relative">
+      <button id="closeStoreQuickViewBtn" type="button" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center text-xs">✕</button>
+      <div class="text-center space-y-2">
+        <img id="quickStoreLogo" src="../img/placeholder.png" alt="Logo Tienda" class="w-16 h-16 rounded-2xl object-cover mx-auto border-2 border-slate-200 shadow-sm" />
+        <h3 id="quickStoreName" class="font-black text-slate-900 text-base">Nombre Tienda</h3>
+        <span id="quickStoreRatingStars" class="inline-block bg-amber-50 text-amber-800 text-xs font-black px-3 py-1 rounded-full border border-amber-200">⭐ 5.0 (0 pedidos)</span>
+      </div>
+      <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+        <div class="flex justify-between border-b pb-1">
+          <span class="text-slate-500 font-medium">📍 Ubicación (Zona):</span>
+          <span id="quickStoreZone" class="font-bold text-slate-800">—</span>
+        </div>
+        <div class="flex justify-between border-b pb-1">
+          <span class="text-slate-500 font-medium">📱 WhatsApp:</span>
+          <span id="quickStoreWa" class="font-bold text-slate-800">—</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500 font-medium">📦 Pedidos Despachados:</span>
+          <span id="quickStoreOrdersCount" class="font-bold text-slate-800">—</span>
+        </div>
+      </div>
+      <button type="button" onclick="document.getElementById('storeQuickViewModal').classList.add('hidden')" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- MODAL CALIFICAR TIENDA POR EL PILOTO -->
+  <div id="rateStoreModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-slate-100 relative">
+      <button id="closeRateStoreBtn" type="button" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-700 w-7 h-7 rounded-full font-bold text-xs">✕</button>
+      <div class="flex items-center gap-2 border-b pb-3">
+        <span class="text-xl">⭐</span>
+        <h3 class="font-black text-slate-900 text-sm">Calificar Atención del Comercio</h3>
+      </div>
+      <input type="hidden" id="rateStoreReqId" />
+      <p id="rateStoreName" class="text-xs font-bold text-slate-700 text-center">Tienda: —</p>
+      
+      <div class="flex justify-center gap-2 text-3xl cursor-pointer py-1" id="storeStarRatingContainer">
+        <span data-star="1" class="store-star transition-transform hover:scale-125">⭐</span>
+        <span data-star="2" class="store-star transition-transform hover:scale-125">⭐</span>
+        <span data-star="3" class="store-star transition-transform hover:scale-125">⭐</span>
+        <span data-star="4" class="store-star transition-transform hover:scale-125">⭐</span>
+        <span data-star="5" class="store-star transition-transform hover:scale-125">⭐</span>
+      </div>
+      <input type="hidden" id="selectedStoreScore" value="5" />
+      
+      <div>
+        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Comentario u Observaciones (Opcional)</label>
+        <textarea id="rateStoreComment" rows="2" placeholder="Ej. Paquete empacado a tiempo, buen trato..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+      </div>
+      
+      <button type="button" id="btnSubmitStoreRating" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs transition shadow">
+        💾 Guardar Calificación de Tienda
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null, currentDriver = null, requests = [], activeReq = null, chatSub = null;
+
+    (async () => {
+      try {
+        const session = await requireAuth();
+        if (!session) return;
+        currentUser = session.user;
+
+        await initDashboardNav({ user: currentUser });
+        await loadDriver();
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+
+        setupTabs();
+        setupChat();
+        setupPinValidationEvents();
+        setupStoreRatingEvents();
+        if (document.getElementById('closeStoreQuickViewBtn')) {
+          document.getElementById('closeStoreQuickViewBtn').onclick = () => document.getElementById('storeQuickViewModal').classList.add('hidden');
+        }
+        await fetchAll();
+        listenGlobal();
+      } catch (e) { console.error(e); }
+    })();
+
+    async function loadDriver() {
+      const client = window._supabase || initSupabaseClient();
+      let { data } = await client.from('delivery_drivers').select('*').eq('user_id', currentUser.id).maybeSingle();
+      if (!data) {
+        const { data: newD } = await client.from('delivery_drivers').upsert([{ user_id: currentUser.id, is_available: true, full_name: currentUser.email }]).select().single();
+        data = newD;
+      }
+      currentDriver = data;
+    }
+
+    function setupTabs() {
+      const f = document.getElementById('feedSection'), h = document.getElementById('historySection');
+      const bF = document.getElementById('tabFeed'), bH = document.getElementById('tabHistory');
+
+      bF.onclick = () => { f.classList.remove('hidden'); h.classList.add('hidden'); bF.className = 'py-2.5 rounded-xl bg-slate-900 text-white shadow-sm transition'; bH.className = 'py-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition'; };
+      bH.onclick = () => { h.classList.remove('hidden'); f.classList.add('hidden'); bH.className = 'py-2.5 rounded-xl bg-slate-900 text-white shadow-sm transition'; bF.className = 'py-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition'; };
+    }
+
+    async function fetchAll() {
+      const client = window._supabase || initSupabaseClient();
+      const { data } = await client.from('delivery_requests').select('*').order('created_at', { ascending: false });
+      
+      const rawRequests = data || [];
+      const storeIds = [...new Set(rawRequests.map(r => r.store_id).filter(Boolean))];
+      let storesMap = {};
+      if (storeIds.length > 0) {
+        const { data: storesData } = await client.from('stores').select('id, name, zone, address, logo_url, whatsapp').in('id', storeIds);
+        (storesData || []).forEach(s => { storesMap[s.id] = s; });
+      }
+
+      requests = rawRequests.map(r => ({
+        ...r,
+        store: storesMap[r.store_id] || { name: 'Comercio' }
+      }));
+
+      activeReq = requests.find(r => String(r.driver_id) === String(currentDriver?.id) && ['accepted', 'in_transit', 'on_the_way', 'counter_offered'].includes(r.status));
+      renderActive();
+      renderFeed();
+      renderHistory();
+    }
+
+    function renderActive() {
+      const sec = document.getElementById('activeDeliverySection');
+      const card = document.getElementById('activeCard');
+      const badge = document.getElementById('activeStatusBadge');
+      if (!activeReq) { sec.classList.add('hidden'); return; }
+
+      sec.classList.remove('hidden');
+      badge.textContent = (activeReq.status || 'ACTIVO').toUpperCase();
+
+      let actionButtons = '';
+      if (['accepted', 'pending', 'counter_offered'].includes(activeReq.status)) {
+        actionButtons = `
+          <button type="button" onclick="openPickupPinModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+            <span>📌 Iniciar Ruta (Ingresar PIN Recolección)</span>
+          </button>`;
+      } else {
+        actionButtons = `
+          <button type="button" onclick="openDeliveryPinModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+            <span>🔐 Finalizar Entrega (Ingresar PIN Cliente)</span>
+          </button>`;
+      }
+
+      const storeName = activeReq.store?.name || 'Comercio';
+
+      card.innerHTML = `
+        <div class="flex justify-between items-start border-b pb-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <p class="font-extrabold text-sm text-slate-900">🏪 ${dashEscapeHtml(storeName)}</p>
+              ${activeReq.store_id ? `<button type="button" onclick="openStoreQuickView('${activeReq.store_id}')" class="text-[10px] font-black bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-lg border transition">🔍 Ver Tienda</button>` : ''}
+            </div>
+            <p class="text-slate-600 mt-1">📍 Origen: <span class="font-bold text-slate-800">${dashEscapeHtml(activeReq.origin_address || 'Tienda')}</span></p>
+            <p class="text-slate-600">📍 Destino: <span class="font-bold text-slate-800">${dashEscapeHtml(activeReq.destination_address || 'Cliente')}</span></p>
+          </div>
+          <span class="font-black text-emerald-600 text-base bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">Q${parseFloat(activeReq.final_fee || activeReq.suggested_fee || 15).toFixed(2)}</span>
+        </div>
+        <div class="pt-1">
+          ${actionButtons}
+        </div>
+      `;
+
+      fetchDriverChat(activeReq.id);
+      subscribeDriverChat(activeReq.id);
+    }
+
+    function renderFeed() {
+      const container = document.getElementById('feedSection');
+      const driverId = currentDriver?.id;
+
+      const pendings = requests.filter(r => {
+        if (r.status !== 'pending') return false;
+        const rejected = Array.isArray(r.rejected_driver_ids) ? r.rejected_driver_ids : [];
+        if (driverId && rejected.includes(driverId)) return false;
+        if (r.assignment_type === 'direct') return String(r.target_driver_id) === String(driverId);
+        return true;
+      });
+
+      if (pendings.length === 0) {
+        container.innerHTML = `<div class="col-span-full bg-white p-8 rounded-2xl text-center text-xs text-slate-400 border border-slate-200/80 shadow-sm">Sin solicitudes pendientes en el feed.</div>`;
+        return;
+      }
+
+      container.innerHTML = pendings.map(r => `
+        <article class="bg-white p-4 rounded-2xl border border-slate-200/80 space-y-3 shadow-sm flex flex-col justify-between">
+          <div class="space-y-2 border-b pb-3">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-1.5">
+                <p class="font-extrabold text-xs text-slate-900">🏪 ${dashEscapeHtml(r.store?.name || 'Comercio')}</p>
+                ${r.store_id ? `<button type="button" onclick="openStoreQuickView('${r.store_id}')" class="text-[10px] font-black bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-lg transition border">🔍 Ver Tienda</button>` : ''}
+              </div>
+              <span class="text-xs font-black bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg">Q${parseFloat(r.suggested_fee || 15).toFixed(2)}</span>
+            </div>
+            <p class="text-xs text-slate-700">📍 Origen: ${dashEscapeHtml(r.origin_address || 'Tienda')}</p>
+            <p class="text-xs text-slate-700 font-bold">📍 Destino: ${dashEscapeHtml(r.destination_address || 'Cliente')}</p>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <input type="number" step="0.50" id="fee_${r.id}" value="${r.suggested_fee || 15}" class="w-20 border border-slate-200 px-2.5 py-1.5 text-xs rounded-xl font-bold bg-slate-50 text-slate-800 text-center" />
+            <button type="button" onclick="acceptFee('${r.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs flex-1 transition shadow-sm">Aceptar</button>
+            <button type="button" onclick="counterFee('${r.id}')" class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs transition shadow-sm">Contraoferta</button>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('historySection');
+      const history = requests.filter(r => String(r.driver_id) === String(currentDriver?.id) && ['delivered', 'completed'].includes(r.status));
+
+      if (history.length === 0) {
+        container.innerHTML = `<div class="col-span-full bg-white p-8 rounded-2xl text-center text-xs text-slate-400 border border-slate-200/80 shadow-sm">Sin entregas en el historial.</div>`;
+        return;
+      }
+
+      container.innerHTML = history.map(r => `
+        <article class="bg-white p-4 rounded-2xl border border-slate-200/80 text-xs flex justify-between items-center shadow-sm">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <p class="font-bold text-slate-900">📍 ${dashEscapeHtml(r.destination_address || 'Destino')}</p>
+              ${r.store_id ? `<button type="button" onclick="openStoreQuickView('${r.store_id}')" class="text-[10px] font-black text-blue-600 hover:underline">🔍 Ver Tienda</button>` : ''}
+            </div>
+            <p class="text-[10px] text-slate-500 mt-0.5">🏪 ${dashEscapeHtml(r.store?.name || 'Comercio')}</p>
+          </div>
+          <span class="text-emerald-600 font-black text-sm bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">Q${parseFloat(r.final_fee || r.suggested_fee || 0).toFixed(2)}</span>
+        </article>
+      `).join('');
+    }
+
+    // VALIDACIÓN DE PINS
+    function setupPinValidationEvents() {
+      document.getElementById('btnConfirmPickupPin').onclick = async () => {
+        const inputPin = document.getElementById('inputPickupPin').value.trim();
+        if (!activeReq) return;
+
+        if (inputPin !== String(activeReq.pickup_pin || '').trim()) {
+          alert('❌ PIN de Recolección incorrecto. Solicítalo al vendedor en tienda.');
+          return;
+        }
+
+        const client = window._supabase || initSupabaseClient();
+        await client.from('delivery_requests').update({ status: 'in_transit', updated_at: new Date().toISOString() }).eq('id', activeReq.id);
+        if (activeReq.order_id) {
+          await client.from('cart_orders').update({ status: 'on_the_way', status_updated_at: new Date().toISOString() }).eq('id', activeReq.order_id);
+        }
+
+        document.getElementById('pickupPinModal').classList.add('hidden');
+        document.getElementById('inputPickupPin').value = '';
+        alert('✅ ¡PIN de Recolección confirmado! La carrera cambió a "En Ruta".');
+        await fetchAll();
+      };
+
+      document.getElementById('btnConfirmDeliveryPin').onclick = async () => {
+        const inputPin = document.getElementById('inputDeliveryPin').value.trim();
+        if (!activeReq) return;
+
+        if (inputPin !== String(activeReq.delivery_pin || '').trim()) {
+          alert('❌ PIN del Cliente incorrecto. Solicita al cliente su PIN de recepción.');
+          return;
+        }
+
+        const client = window._supabase || initSupabaseClient();
+        await client.from('delivery_requests').update({ status: 'delivered', updated_at: new Date().toISOString() }).eq('id', activeReq.id);
+        if (activeReq.order_id) {
+          await client.from('cart_orders').update({ status: 'completed', status_updated_at: new Date().toISOString() }).eq('id', activeReq.order_id);
+        }
+
+        const currentReqId = activeReq.id;
+        const currentStoreName = activeReq.store?.name || 'Comercio';
+
+        document.getElementById('deliveryPinModal').classList.add('hidden');
+        document.getElementById('inputDeliveryPin').value = '';
+        
+        await fetchAll();
+
+        openRateStoreModal(currentReqId, currentStoreName);
+      };
+    }
+
+    function openPickupPinModal() {
+      document.getElementById('inputPickupPin').value = '';
+      document.getElementById('pickupPinModal').classList.remove('hidden');
+    }
+
+    function openDeliveryPinModal() {
+      document.getElementById('inputDeliveryPin').value = '';
+      document.getElementById('deliveryPinModal').classList.remove('hidden');
+    }
+
+    // QUICK VIEW TIENDA
+    async function openStoreQuickView(storeId) {
+      if (!storeId) return;
+      const client = window._supabase || initSupabaseClient();
+      const modal = document.getElementById('storeQuickViewModal');
+
+      const { data: store } = await client.from('stores').select('*').eq('id', storeId).maybeSingle();
+      if (!store) {
+        alert('No se encontraron detalles del comercio.');
+        return;
+      }
+
+      const { data: storeDelivs } = await client.from('delivery_requests').select('seller_rating, status').eq('store_id', storeId);
+      
+      const validRatings = (storeDelivs || []).filter(r => r.seller_rating > 0);
+      const avgRating = validRatings.length > 0
+        ? (validRatings.reduce((acc, curr) => acc + parseFloat(curr.seller_rating), 0) / validRatings.length).toFixed(1)
+        : '5.0';
+      const completedCount = (storeDelivs || []).filter(r => ['delivered', 'completed'].includes(r.status)).length;
+
+      document.getElementById('quickStoreLogo').src = store.logo_url || '../img/placeholder.png';
+      document.getElementById('quickStoreName').textContent = store.name || 'Comercio Local';
+      document.getElementById('quickStoreRatingStars').textContent = `⭐ ${avgRating} (${completedCount} despachos)`;
+      document.getElementById('quickStoreZone').textContent = store.zone ? `Zona ${store.zone}` : (store.address || 'Quetzaltenango');
+      document.getElementById('quickStoreWa').textContent = store.whatsapp || 'N/A';
+      document.getElementById('quickStoreOrdersCount').textContent = `${completedCount} pedidos entregados`;
+
+      modal.classList.remove('hidden');
+    }
+
+    // CALIFICACIÓN A TIENDA
+    function setupStoreRatingEvents() {
+      const closeBtn = document.getElementById('closeRateStoreBtn');
+      if (closeBtn) closeBtn.onclick = () => document.getElementById('rateStoreModal').classList.add('hidden');
+
+      const stars = document.querySelectorAll('#storeStarRatingContainer .store-star');
+      stars.forEach(s => {
+        s.onclick = () => {
+          const val = parseInt(s.dataset.star, 10);
+          document.getElementById('selectedStoreScore').value = val;
+          updateStoreStarUI(val);
+        };
+      });
+
+      const submitBtn = document.getElementById('btnSubmitStoreRating');
+      if (submitBtn) {
+        submitBtn.onclick = async () => {
+          const reqId = document.getElementById('rateStoreReqId').value;
+          const score = parseInt(document.getElementById('selectedStoreScore').value, 10);
+          const client = window._supabase || initSupabaseClient();
+
+          const { error } = await client.from('delivery_requests').update({
+            seller_rating: score,
+            updated_at: new Date().toISOString()
+          }).eq('id', reqId);
+
+          if (error) {
+            alert('Error al guardar la calificación: ' + error.message);
+          } else {
+            alert('¡Calificación guardada con éxito! ⭐');
+            document.getElementById('rateStoreModal').classList.add('hidden');
+            await fetchAll();
+          }
+        };
+      }
+    }
+
+    function updateStoreStarUI(score) {
+      const stars = document.querySelectorAll('#storeStarRatingContainer .store-star');
+      stars.forEach((s, idx) => {
+        s.style.opacity = (idx < score) ? '1' : '0.3';
+      });
+    }
+
+    function openRateStoreModal(requestId, storeName) {
+      document.getElementById('rateStoreReqId').value = requestId;
+      document.getElementById('rateStoreName').textContent = `Tienda: ${storeName || 'Comercio'}`;
+      document.getElementById('rateStoreComment').value = '';
+      document.getElementById('selectedStoreScore').value = '5';
+      updateStoreStarUI(5);
+
+      document.getElementById('rateStoreModal').classList.remove('hidden');
+    }
+
+    async function acceptFee(id) {
+      const fee = parseFloat(document.getElementById(`fee_${id}`).value) || 15;
+      const client = window._supabase || initSupabaseClient();
+      await client.from('delivery_requests').update({ driver_id: currentDriver.id, final_fee: fee, status: 'accepted', updated_at: new Date().toISOString() }).eq('id', id);
+      await fetchAll();
+    }
+
+    async function counterFee(id) {
+      const fee = parseFloat(document.getElementById(`fee_${id}`).value) || 15;
+      const client = window._supabase || initSupabaseClient();
+      await client.from('delivery_requests').update({ driver_id: currentDriver.id, counter_fee: fee, status: 'counter_offered', updated_at: new Date().toISOString() }).eq('id', id);
+      await fetchAll();
+    }
+
+    function setupChat() {
+      document.getElementById('driverChatForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('driverChatMessageInput');
+        const msg = input.value.trim();
+        if (!msg || !activeReq) return;
+
+        input.value = '';
+        const client = window._supabase || initSupabaseClient();
+        await client.from('delivery_messages').insert([{
+          request_id: activeReq.id,
+          sender_id: currentUser.id,
+          sender_role: 'driver',
+          sender_name: currentDriver.full_name || 'Piloto',
+          message: msg
+        }]);
+        fetchDriverChat(activeReq.id);
+      };
+    }
+
+    async function fetchDriverChat(reqId) {
+      const client = window._supabase || initSupabaseClient();
+      const container = document.getElementById('driverChatMessages');
+      const { data } = await client.from('delivery_messages').select('*').eq('request_id', reqId).order('created_at', { ascending: true });
+
+      container.innerHTML = (data || []).map(m => `
+        <div class="flex flex-col ${m.sender_role === 'driver' ? 'items-end' : 'items-start'}">
+          <div class="${m.sender_role === 'driver' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-800'} px-3 py-1.5 rounded-xl font-medium max-w-[80%]">
+            ${dashEscapeHtml(m.message)}
+          </div>
+        </div>
+      `).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function subscribeDriverChat(reqId) {
+      const client = window._supabase || initSupabaseClient();
+      if (chatSub) client.removeChannel(chatSub);
+      chatSub = client.channel(`chat_driver_${reqId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_messages', filter: `request_id=eq.${reqId}` }, () => fetchDriverChat(reqId))
+        .subscribe();
+    }
+
+    function listenGlobal() {
+      const client = window._supabase || initSupabaseClient();
+      client.channel('driver_global_sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_requests' }, () => fetchAll())
+        .subscribe();
+    }
+  </script>
+</body>
+</html>

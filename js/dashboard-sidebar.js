@@ -1,7 +1,7 @@
 // =============================================================
 // js/dashboard-sidebar.js
-// Sidebar y Topbar adaptativos con botón "Ir al Catálogo" superior,
-// Asistente de Ventas AI y Kit Imprimible QR.
+// Sidebar y Topbar adaptativos con soporte Multi-Rol,
+// Enrutamiento Inteligente, Selector de Modo y Activador de Perfiles.
 // =============================================================
 
 (function () {
@@ -9,11 +9,12 @@
 
   const ROOT              = '../';
   const ACTIVE_STORE_KEY  = 'activeStoreId';
+  const DASH_MODE_KEY     = 'pasajeDashMode'; // 'merchant' | 'delivery' | 'real_estate'
   const SIDEBAR_ID        = 'pasajeDashSidebar';
   const OVERLAY_ID        = 'pasajeDashSidebarOverlay';
   const SECTION_STATE_KEY = 'pasaje_dash_sidebar_sections';
 
-  const SECTIONS = [
+  const SECTIONS_MERCHANT = [
     {
       id: 'commercial',
       title: 'Gestión Comercial',
@@ -49,6 +50,28 @@
     }
   ];
 
+  const SECTIONS_DELIVERY = [
+    {
+      id: 'delivery',
+      title: 'Pasaje Delivery Xela',
+      openByDefault: true,
+      items: [
+        { key: 'delivery-feed', label: 'Feed de Carreras', href: 'dashboard-delivery.html', icon: '🛵' }
+      ]
+    }
+  ];
+
+  const SECTIONS_REAL_ESTATE = [
+    {
+      id: 'real_estate',
+      title: 'Pasaje Inmuebles Xela',
+      openByDefault: true,
+      items: [
+        { key: 'inmuebles-list', label: 'Mis Inmuebles y Propiedades', href: 'dashboard-inmuebles.html', icon: '🏠' }
+      ]
+    }
+  ];
+
   function idEq(a, b) {
     if (a === null || a === undefined || b === null || b === undefined) return false;
     return String(a) === String(b);
@@ -77,6 +100,22 @@
   function isSectionOpen(id, defaultOpen) {
     const state = getSectionState();
     return Object.prototype.hasOwnProperty.call(state, id) ? !!state[id] : !!defaultOpen;
+  }
+
+  async function getUserRoles(userId) {
+    if (!userId) return { is_merchant: true, is_delivery: false, is_real_estate: false };
+
+    const { data } = await _supabase
+      .from('user_roles')
+      .select('is_merchant, is_delivery, is_real_estate')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    return {
+      is_merchant: data ? data.is_merchant !== false : true,
+      is_delivery: data ? !!data.is_delivery : false,
+      is_real_estate: data ? !!data.is_real_estate : false
+    };
   }
 
   async function getMyStores() {
@@ -128,8 +167,14 @@
   async function guardDashboardPage() {
     const { session, stores, store } = await getActiveStore();
     if (!session) return { session: null, stores: [], store: null };
+
+    const page = getCurrentPage();
+    if (page === 'dashboard-delivery.html' || page === 'dashboard-inmuebles.html') {
+      return { session, stores: stores || [], store: store || null };
+    }
+
     if (!store) {
-      window.location.replace('dashboard.html');
+      window.location.replace('dashboard-tiendas.html');
       return { session, stores: [], store: null };
     }
     return { session, stores, store };
@@ -153,11 +198,7 @@
         border-right: 1px solid rgba(148, 163, 184, 0.25);
       }
 
-      #${SIDEBAR_ID} a,
-      #${SIDEBAR_ID} button,
-      #${SIDEBAR_ID} span,
-      #${SIDEBAR_ID} p,
-      #${SIDEBAR_ID} div {
+      #${SIDEBAR_ID} a, #${SIDEBAR_ID} button, #${SIDEBAR_ID} span, #${SIDEBAR_ID} p, #${SIDEBAR_ID} div {
         text-decoration: none !important;
       }
 
@@ -173,20 +214,9 @@
         color: var(--dash-sidebar-text, #1e293b) !important;
       }
 
-      #${SIDEBAR_ID} .pasaje-nav-link * {
-        color: inherit !important;
-        text-decoration: none !important;
-      }
-
       #${SIDEBAR_ID} .pasaje-nav-link:hover {
         background: color-mix(in srgb, var(--dash-sidebar-active, #10b981) 10%, transparent) !important;
         color: var(--dash-sidebar-active, #10b981) !important;
-        text-decoration: none !important;
-      }
-
-      #${SIDEBAR_ID} .pasaje-nav-link:hover * {
-        color: var(--dash-sidebar-active, #10b981) !important;
-        text-decoration: none !important;
       }
 
       #${SIDEBAR_ID} .pasaje-nav-link.active {
@@ -194,26 +224,7 @@
         color: var(--dash-sidebar-active, #10b981) !important;
         border-left: 5px solid var(--dash-sidebar-active, #10b981) !important;
         font-weight: 800 !important;
-        text-decoration: none !important;
       }
-
-      #${SIDEBAR_ID} .pasaje-nav-link.active * {
-        color: var(--dash-sidebar-active, #10b981) !important;
-        text-decoration: none !important;
-      }
-
-      #${SIDEBAR_ID} .pasaje-section-title {
-        opacity: 0.75;
-      }
-
-      #${SIDEBAR_ID} .pasaje-section-body {
-        display: grid; grid-template-rows: 1fr;
-        transition: grid-template-rows .3s ease, opacity .2s ease; opacity: 1;
-      }
-      #${SIDEBAR_ID} .pasaje-section-body > .pasaje-section-inner { overflow: hidden; min-height: 0; }
-      #${SIDEBAR_ID} .pasaje-section-body.collapsed { grid-template-rows: 0fr; opacity: 0; }
-      #${SIDEBAR_ID} .pasaje-chevron { transition: transform .25s ease; opacity: 0.7; }
-      #${SIDEBAR_ID} .pasaje-chevron.rotated { transform: rotate(180deg); }
 
       .dash-topbar-dynamic {
         background-color: rgba(var(--header-glass-tint-rgb, var(--color-primary-rgb, 30, 58, 138)), var(--header-glass-opacity, 0.95)) !important;
@@ -224,15 +235,9 @@
       }
 
       @media (min-width: 1024px) {
-        body.pasaje-has-dash-sidebar {
-          padding-left: 17rem !important;
-        }
-        body.pasaje-has-dash-sidebar #${SIDEBAR_ID} {
-          transform: translateX(0) !important;
-        }
-        body.pasaje-has-dash-sidebar #${OVERLAY_ID} {
-          display: none !important;
-        }
+        body.pasaje-has-dash-sidebar { padding-left: 17rem !important; }
+        body.pasaje-has-dash-sidebar #${SIDEBAR_ID} { transform: translateX(0) !important; }
+        body.pasaje-has-dash-sidebar #${OVERLAY_ID} { display: none !important; }
       }
     `;
   }
@@ -244,6 +249,40 @@
       return `<img src="${escapeHtml(store.logo_url)}" alt="" class="${sizeClasses} rounded-full object-cover flex-shrink-0 border border-white/70 shadow-sm">`;
     }
     return `<div class="${sizeClasses} rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center font-extrabold flex-shrink-0 shadow-sm ${textClasses}">${initial}</div>`;
+  }
+
+  function renderModeSelector(roles, currentMode) {
+    const modes = [];
+    if (roles.is_merchant) modes.push({ key: 'merchant', label: 'Comercio', icon: '🏪' });
+    if (roles.is_delivery) modes.push({ key: 'delivery', label: 'Repartidor', icon: '🛵' });
+    if (roles.is_real_estate) modes.push({ key: 'real_estate', label: 'Inmuebles', icon: '🏠' });
+
+    const buttons = modes.map(m => {
+      const isActive = currentMode === m.key;
+      return `
+        <button type="button" data-switch-mode="${m.key}" class="flex-1 py-1.5 px-1 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 ${isActive ? 'bg-indigo-600 text-white shadow-sm' : 'opacity-70 hover:opacity-100'}">
+          <span>${m.icon}</span>
+          <span class="truncate">${m.label}</span>
+        </button>
+      `;
+    }).join('');
+
+    const hasMissingRoles = !roles.is_merchant || !roles.is_delivery || !roles.is_real_estate;
+
+    return `
+      <div class="px-3 pt-2 flex-shrink-0 space-y-1.5">
+        <div class="bg-black/10 p-1 rounded-xl flex items-center gap-1 border border-black/10">
+          ${buttons}
+        </div>
+
+        ${hasMissingRoles ? `
+          <button type="button" id="btnOpenActivateRoleModal" class="w-full text-center py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 border border-emerald-300/40 rounded-xl text-[11px] font-black transition flex items-center justify-center gap-1">
+            <span>➕</span>
+            <span>Activar Nuevo Perfil</span>
+          </button>
+        ` : ''}
+      </div>
+    `;
   }
 
   function renderSection(section, currentPage) {
@@ -324,32 +363,48 @@
     `;
   }
 
-  function renderSidebar(user, store, stores) {
+  function renderSidebar(user, store, stores, roles, activeMode) {
     const current = getCurrentPage();
-    const sectionsHTML = SECTIONS.map(sec => renderSection(sec, current)).join('');
+    let activeSections = SECTIONS_MERCHANT;
+    let modeTitle = 'Panel Emprendedor';
+
+    if (activeMode === 'delivery') {
+      activeSections = SECTIONS_DELIVERY;
+      modeTitle = 'Panel Repartidor';
+    } else if (activeMode === 'real_estate') {
+      activeSections = SECTIONS_REAL_ESTATE;
+      modeTitle = 'Panel Inmuebles';
+    }
+
+    const sectionsHTML = activeSections.map(sec => renderSection(sec, current)).join('');
 
     return `
       <aside id="${SIDEBAR_ID}" class="fixed inset-y-0 left-0 z-[60] w-[17rem] flex flex-col shadow-2xl" style="transform: translateX(-100%);">
         <div class="flex items-center justify-between px-4 py-3 border-b border-black/10 flex-shrink-0">
           <a href="${ROOT}index.html" class="flex items-center gap-2 min-w-0">
-            <span class="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-lg shadow-sm">🏔️</span>
+            <span class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-lg shadow-sm">🏔️</span>
             <div class="leading-tight min-w-0">
-              <div class="font-extrabold text-sm truncate">Pasaje de los <span class="text-emerald-500">Altos</span></div>
-              <div class="text-[10px] opacity-70 font-medium truncate">Panel Emprendedor</div>
+              <div class="font-extrabold text-sm truncate">Pasaje de los <span class="text-indigo-500">Altos</span></div>
+              <div class="text-[10px] opacity-70 font-medium truncate">${modeTitle}</div>
             </div>
           </a>
           <button type="button" id="${SIDEBAR_ID}Close" class="lg:hidden bg-black/10 hover:bg-black/20 w-8 h-8 rounded-xl flex items-center justify-center transition flex-shrink-0 font-bold text-xs">✕</button>
         </div>
 
-        <div class="px-3 pt-3 pb-1 flex-shrink-0">
-          <a href="${ROOT}index.html"
-             class="w-full flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-extrabold bg-black/10 hover:bg-black/20 border border-black/10 transition shadow-sm !text-emerald-600 no-underline">
+        ${renderModeSelector(roles, activeMode)}
+
+        <div class="px-3 pt-2 pb-1 flex-shrink-0 space-y-1">
+          <a href="${ROOT}index.html" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-extrabold bg-black/10 hover:bg-black/20 border border-black/10 transition shadow-sm !text-indigo-600 no-underline">
+            <span class="text-base">🏬</span>
+            <span>Ver Catálogo Público</span>
+          </a>
+          <a href="${ROOT}inmuebles.html" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-extrabold bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-200 transition shadow-sm !text-indigo-700 no-underline">
             <span class="text-base">🏠</span>
-            <span>Ir al Catálogo Público</span>
+            <span>Ver Portal Inmuebles</span>
           </a>
         </div>
 
-        ${renderStoreSwitcher(store, stores)}
+        ${activeMode === 'merchant' ? renderStoreSwitcher(store, stores) : ''}
         <nav class="flex-1 overflow-y-auto px-2 py-1">${sectionsHTML}</nav>
         <div class="border-t border-black/10 flex-shrink-0 bg-black/5">
           <div class="px-4 py-2 text-[11px] opacity-70 truncate">${escapeHtml(user.email || '')}</div>
@@ -357,6 +412,48 @@
         </div>
       </aside>
       <div id="${OVERLAY_ID}" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[55] lg:hidden"></div>
+
+      <!-- MODAL DINÁMICO DE ACTIVACIÓN DE ROL -->
+      <div id="activateRoleModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100">
+          <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="font-extrabold text-slate-900 text-base">➕ Activar Nuevo Perfil</h3>
+            <button id="btnCloseRoleModal" type="button" class="bg-slate-100 text-slate-700 w-8 h-8 rounded-full font-bold text-xs">✕</button>
+          </div>
+
+          <div class="space-y-3" id="roleActivationOptions">
+            ${!roles.is_delivery ? `
+              <button type="button" onclick="activateUserRole('delivery')" class="w-full p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition flex items-center gap-3">
+                <span class="text-3xl">🛵</span>
+                <div>
+                  <h4 class="font-extrabold text-xs text-emerald-900 uppercase">Activar Perfil de Repartidor</h4>
+                  <p class="text-[11px] text-emerald-700">Realiza carreras de Pasaje Delivery en Xela.</p>
+                </div>
+              </button>
+            ` : ''}
+
+            ${!roles.is_real_estate ? `
+              <button type="button" onclick="activateUserRole('real_estate')" class="w-full p-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-left transition flex items-center gap-3">
+                <span class="text-3xl">🏠</span>
+                <div>
+                  <h4 class="font-extrabold text-xs text-indigo-900 uppercase">Activar Perfil Inmobiliario</h4>
+                  <p class="text-[11px] text-indigo-700">Publica casas, cuartos o locales en alquiler/venta.</p>
+                </div>
+              </button>
+            ` : ''}
+
+            ${!roles.is_merchant ? `
+              <button type="button" onclick="activateUserRole('merchant')" class="w-full p-4 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left transition flex items-center gap-3">
+                <span class="text-3xl">🏪</span>
+                <div>
+                  <h4 class="font-extrabold text-xs text-blue-900 uppercase">Activar Perfil de Comercio</h4>
+                  <p class="text-[11px] text-blue-700">Crea tu tienda y vende productos en la red.</p>
+                </div>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      </div>
     `;
   }
 
@@ -368,11 +465,15 @@
             <button type="button" id="${SIDEBAR_ID}Open" class="lg:hidden bg-white/10 hover:bg-white/20 p-2 rounded-lg transition flex-shrink-0" aria-label="Abrir menú">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <a href="${ROOT}index.html" class="text-lg font-extrabold truncate">Pasaje de los <span class="text-emerald-400">Altos</span></a>
+            <a href="${ROOT}index.html" class="text-lg font-extrabold truncate">Pasaje de los <span class="text-indigo-400">Altos</span></a>
             ${store ? `<span class="hidden sm:inline text-xs opacity-80 truncate max-w-[180px]">· ${escapeHtml(store.name)}</span>` : ''}
           </div>
           <div class="flex items-center gap-2">
-            <a href="${ROOT}index.html" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-semibold transition">Ver catálogo</a>
+            <a href="${ROOT}inmuebles.html" class="text-xs bg-indigo-500/30 hover:bg-indigo-500/40 text-white border border-indigo-300/30 px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1">
+              <span>🏠</span>
+              <span>Portal Inmuebles</span>
+            </a>
+            <a href="${ROOT}index.html" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-semibold transition">Catálogo</a>
           </div>
         </div>
       </header>
@@ -406,100 +507,82 @@
     else openSidebar();
   }
 
-  async function loadSupportBadge(storeId) {
-    try {
-      const { count, error } = await _supabase.from('reports').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'pending');
-      if (error) return;
-      const badge = document.querySelector('[data-dash-badge="soporte"]');
-      if (!badge) return;
-      const n = count ?? 0;
-      if (n === 0) { badge.classList.add('hidden'); badge.textContent = ''; }
-      else { badge.textContent = n; badge.classList.remove('hidden'); }
-    } catch (e) {}
-  }
-
-  async function loadOrdersBadge(storeId) {
-    try {
-      const { count, error } = await _supabase.from('cart_orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'sent');
-      if (error) return;
-      const badge = document.querySelector('[data-dash-badge="pedidos"]');
-      if (!badge) return;
-      const n = count ?? 0;
-      if (n === 0) { badge.classList.add('hidden'); badge.textContent = ''; }
-      else { badge.textContent = n; badge.classList.remove('hidden'); }
-    } catch (e) {}
-  }
-
-  function bindAccordion() {
-    document.querySelectorAll(`#${SIDEBAR_ID} [data-acc-toggle]`).forEach(btn => {
-      if (btn.dataset.accBound) return;
-      btn.dataset.accBound = '1';
+  function bindModeSwitcher() {
+    document.querySelectorAll(`#${SIDEBAR_ID} [data-switch-mode]`).forEach(btn => {
       btn.addEventListener('click', () => {
-        const id = btn.dataset.accToggle;
-        const section = btn.closest('[data-acc-section]');
-        if (!section) return;
-        const body = section.querySelector('.pasaje-section-body');
-        const chevron = btn.querySelector('.pasaje-chevron');
-        const collapsed = body.classList.toggle('collapsed');
-        if (chevron) chevron.classList.toggle('rotated', collapsed);
-        const state = getSectionState();
-        state[id] = !collapsed;
-        saveSectionState(state);
-      });
-    });
-  }
-
-  function bindStoreSwitcher(store) {
-    document.querySelectorAll(`#${SIDEBAR_ID} [data-store-id]`).forEach(btn => {
-      btn.addEventListener('click', () => {
-        const newId = btn.dataset.storeId;
-        if (idEq(newId, store && store.id)) {
-          const sw = document.getElementById(`${SIDEBAR_ID}StoreSwitcher`);
-          if (sw) sw.open = false;
-          return;
-        }
-        setActiveStore(newId);
-        window.location.reload();
+        const mode = btn.dataset.switchMode;
+        localStorage.setItem(DASH_MODE_KEY, mode);
+        if (mode === 'delivery') window.location.href = 'dashboard-delivery.html';
+        else if (mode === 'real_estate') window.location.href = 'dashboard-inmuebles.html';
+        else window.location.href = 'dashboard-productos.html';
       });
     });
 
-    document.addEventListener('click', (e) => {
-      const sw = document.getElementById(`${SIDEBAR_ID}StoreSwitcher`);
-      if (sw && sw.open && !sw.contains(e.target)) sw.open = false;
-    });
+    const btnOpenModal = document.getElementById('btnOpenActivateRoleModal');
+    if (btnOpenModal) {
+      btnOpenModal.addEventListener('click', () => {
+        document.getElementById('activateRoleModal').classList.remove('hidden');
+      });
+    }
+
+    const btnCloseModal = document.getElementById('btnCloseRoleModal');
+    if (btnCloseModal) {
+      btnCloseModal.addEventListener('click', () => {
+        document.getElementById('activateRoleModal').classList.add('hidden');
+      });
+    }
   }
+
+  window.activateUserRole = async function (roleKey) {
+    try {
+      const session = await requireAuth();
+      if (!session) return;
+
+      const updateData = {};
+      if (roleKey === 'delivery') updateData.is_delivery = true;
+      if (roleKey === 'real_estate') updateData.is_real_estate = true;
+      if (roleKey === 'merchant') updateData.is_merchant = true;
+
+      await _supabase.from('user_roles').upsert([{ user_id: session.user.id, ...updateData }], { onConflict: 'user_id' });
+
+      localStorage.setItem(DASH_MODE_KEY, roleKey);
+      if (roleKey === 'delivery') window.location.href = 'dashboard-delivery.html';
+      else if (roleKey === 'real_estate') window.location.href = 'dashboard-inmuebles.html';
+      else window.location.href = 'dashboard-tiendas.html';
+    } catch (err) {
+      alert('Error al activar perfil: ' + err.message);
+    }
+  };
 
   async function initDashboardNav({ user, store, stores } = {}) {
     if (!user) return;
-
-    if (typeof dashInjectFilterStyles === 'function') dashInjectFilterStyles();
     injectStyles();
 
-    if (!stores) {
+    const roles = await getUserRoles(user.id);
+    const currentPage = getCurrentPage();
+    let currentMode = localStorage.getItem(DASH_MODE_KEY) || 'merchant';
+
+    if (currentPage === 'dashboard-delivery.html') currentMode = 'delivery';
+    else if (currentPage === 'dashboard-inmuebles.html') currentMode = 'real_estate';
+
+    if (!stores && currentMode === 'merchant') {
       const res = await getMyStores();
       stores = res.stores;
     }
 
-    if (!store && stores.length > 0) {
+    if (!store && stores && stores.length > 0) {
       const storedId = localStorage.getItem(ACTIVE_STORE_KEY);
       store = stores.find(s => idEq(s.id, storedId)) || stores[0];
-      if (!idEq(localStorage.getItem(ACTIVE_STORE_KEY), store.id)) {
-        localStorage.setItem(ACTIVE_STORE_KEY, String(store.id));
-      }
     }
 
     document.getElementById(SIDEBAR_ID)?.remove();
     document.getElementById(OVERLAY_ID)?.remove();
 
-    document.body.insertAdjacentHTML('beforeend', renderSidebar(user, store, stores));
+    document.body.insertAdjacentHTML('beforeend', renderSidebar(user, store, stores, roles, currentMode));
     document.body.classList.add('pasaje-has-dash-sidebar');
 
     const headerMount = document.getElementById('dashboardHeader');
     if (headerMount) headerMount.innerHTML = renderTopbar(user, store);
-    else document.body.insertAdjacentHTML('afterbegin', renderTopbar(user, store));
-
-    const tabsMount = document.getElementById('dashboardTabs');
-    if (tabsMount) tabsMount.innerHTML = '';
 
     const openBtn  = document.getElementById(`${SIDEBAR_ID}Open`);
     const closeBtn = document.getElementById(`${SIDEBAR_ID}Close`);
@@ -509,8 +592,7 @@
     if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
     if (overlay)  overlay.addEventListener('click', closeSidebar);
 
-    bindAccordion();
-    bindStoreSwitcher(store);
+    bindModeSwitcher();
 
     const logoutBtn = document.getElementById('dashboardLogoutBtn');
     if (logoutBtn) {
@@ -519,13 +601,6 @@
         clearActiveStore();
         window.location.replace(ROOT + 'login.html');
       });
-    }
-
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
-
-    if (store && store.id) {
-      loadSupportBadge(store.id);
-      loadOrdersBadge(store.id);
     }
   }
 
@@ -537,14 +612,5 @@
   window.clearActiveStore       = clearActiveStore;
   window.loadMyStore            = loadMyStore;
   window.guardDashboardPage     = guardDashboardPage;
-  window.dashIdEq               = idEq;
   window.toggleDashboardSidebar = toggleSidebar;
-
-  window.addEventListener('pasaje:theme-applied', () => { injectStyles(); });
-  window.addEventListener('pasaje:sidebar-updated', () => { injectStyles(); });
-  window.addEventListener('input', (e) => {
-    if (e.target && e.target.id && (e.target.id.includes('sidebar') || e.target.id.includes('Sidebar') || e.target.id.includes('Color') || e.target.id.includes('Tint') || e.target.id.includes('Opacity') || e.target.id.includes('Blur'))) {
-      injectStyles();
-    }
-  });
 })();

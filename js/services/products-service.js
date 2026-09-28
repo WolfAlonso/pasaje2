@@ -242,6 +242,146 @@
     return (data || []).map(normalizeProduct).filter(p => p && p.is_on_sale);
   }
 
+  // MÉTODO FASE 16: Obtener exclusivamente productos en oferta con paginación y filtros
+  async function fetchSaleProducts({
+    page = 0,
+    limit = PAGE_SIZE,
+    categorySlug = 'todas',
+    searchTerm = '',
+    sortBy = 'recent'
+  } = {}) {
+    if (typeof window._supabase === 'undefined') {
+      throw new Error('Supabase no está inicializado.');
+    }
+
+    const nowIso = new Date().toISOString();
+    const from = page * limit;
+    const to = from + limit - 1;
+
+    let selectQuery = `
+      id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, image_urls, is_featured, is_active,
+      stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
+      store_id, category_id, created_at,
+      stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
+      categories ( id, name, slug, icon ),
+      product_images ( id, image_url, sort_order ),
+      product_variants ( id, variant_group, name, price_adjustment, stock_quantity )
+    `;
+
+    if (categorySlug && categorySlug !== 'todas') {
+      selectQuery = `
+        id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, image_urls, is_featured, is_active,
+        stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
+        store_id, category_id, created_at,
+        stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
+        categories!inner ( id, name, slug, icon ),
+        product_images ( id, image_url, sort_order ),
+        product_variants ( id, variant_group, name, price_adjustment, stock_quantity )
+      `;
+    }
+
+    let query = window._supabase
+      .from('products')
+      .select(selectQuery, { count: 'exact' })
+      .eq('is_active', true)
+      .eq('is_on_sale', true)
+      .eq('stores.is_active', true)
+      .eq('stores.is_suspended', false)
+      .or(`sale_expires_at.gt.${nowIso},sale_expires_at.is.null`);
+
+    if (categorySlug && categorySlug !== 'todas') {
+      query = query.eq('categories.slug', categorySlug);
+    }
+
+    if (searchTerm && searchTerm.trim() !== '') {
+      const term = searchTerm.trim();
+      query = query.ilike('title', `%${term}%`);
+    }
+
+    switch (sortBy) {
+      case 'popular':
+        query = query.order('favorites_count', { ascending: false }).order('created_at', { ascending: false });
+        break;
+      case 'expires':
+        query = query.order('sale_expires_at', { ascending: true, nullsFirst: false });
+        break;
+      case 'price-asc':
+        query = query.order('price', { ascending: true });
+        break;
+      case 'price-desc':
+        query = query.order('price', { ascending: false });
+        break;
+      case 'recent':
+      default:
+        query = query.order('created_at', { ascending: false });
+        break;
+    }
+
+    query = query.range(from, to);
+
+    const { data, count, error } = await query;
+
+    if (error) {
+      console.error('[ProductsService] Error en consulta de ofertas:', error);
+      throw error;
+    }
+
+    const products = (data || [])
+      .map(normalizeProduct)
+      .filter(p => p && p.is_on_sale && p.store_is_active && !p.store_is_suspended);
+
+    const totalCount = count || 0;
+    const hasMore = (from + products.length) < totalCount;
+
+    return { products, hasMore, totalCount, page, limit };
+  }
+
+  // MÉTODO FASE 16: Obtener únicamente categorías que poseen ofertas activas con conteo
+  async function fetchSaleCategories() {
+    if (typeof window._supabase === 'undefined') return { categories: [], counts: {} };
+
+    const nowIso = new Date().toISOString();
+
+    const { data, error } = await window._supabase
+      .from('products')
+      .select(`
+        id, category_id,
+        categories!inner ( id, name, slug, icon, sort_order ),
+        stores!inner ( is_active, is_suspended )
+      `)
+      .eq('is_active', true)
+      .eq('is_on_sale', true)
+      .eq('stores.is_active', true)
+      .eq('stores.is_suspended', false)
+      .or(`sale_expires_at.gt.${nowIso},sale_expires_at.is.null`);
+
+    if (error) {
+      console.error('[ProductsService] Error al obtener categorías con oferta:', error);
+      return { categories: [], counts: {} };
+    }
+
+    const counts = {};
+    const catMap = new Map();
+    let totalSaleProducts = 0;
+
+    (data || []).forEach(p => {
+      totalSaleProducts++;
+      if (p.categories) {
+        const cat = p.categories;
+        const key = String(cat.id);
+        counts[key] = (counts[key] || 0) + 1;
+        if (!catMap.has(key)) {
+          catMap.set(key, cat);
+        }
+      }
+    });
+
+    counts['todas'] = totalSaleProducts;
+    const categories = Array.from(catMap.values()).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+    return { categories, counts };
+  }
+
   async function searchPredictive(term, limit = 6) {
     if (typeof window._supabase === 'undefined') return [];
     if (!term || term.trim().length < 2) return [];
@@ -373,6 +513,8 @@
     PAGE_SIZE,
     getProducts: fetchProducts,
     getFlashSales: fetchFlashSales,
+    getSaleProducts: fetchSaleProducts,
+    getSaleCategories: fetchSaleCategories,
     searchPredictive,
     getFeaturedProducts: fetchFeaturedProducts,
     fetchProductReviews,

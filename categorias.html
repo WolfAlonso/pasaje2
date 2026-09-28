@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title class="theme-title">Directorio de Categorías · Pasaje de los Altos</title>
-  <meta name="description" content="Explora el directorio de categorías y subcategorías de emprendedores locales en Quetzaltenango.">
+  <meta name="description" content="Explora el directorio dinámico de categorías y subcategorías de emprendedores locales en Quetzaltenango.">
   <meta name="theme-color" content="#1e3a8a">
   
   <link rel="manifest" href="manifest.json">
@@ -17,28 +17,119 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js?v=4"></script>
 
+  <script>
+    (function () {
+      if (typeof window.PLACEHOLDER_IMG === 'undefined') {
+        window.PLACEHOLDER_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#f1f5f9"/><text x="50%" y="50%" text-anchor="middle" dy=".35em" fill="#94a3b8" font-family="sans-serif" font-size="20">Sin imagen</text></svg>'
+        );
+      }
+      if (typeof window.cleanPhone === 'undefined') {
+        window.cleanPhone = function (raw) { return String(raw || '').replace(/\D/g, ''); };
+      }
+      if (typeof window.heartSVG === 'undefined') {
+        window.heartSVG = function (filled) {
+          var fill = filled ? 'currentColor' : 'none';
+          return '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="' + fill + '" stroke="' + (filled ? '#ef4444' : 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+        };
+      }
+      if (typeof window.Favorites === 'undefined') {
+        var _favs = [];
+        try { _favs = JSON.parse(localStorage.getItem('pasaje_favorites') || '[]'); } catch (e) { _favs = []; }
+        function persistFavs() { try { localStorage.setItem('pasaje_favorites', JSON.stringify(_favs)); } catch (e) {} }
+        window.Favorites = {
+          getAll: function () { return _favs.slice(); },
+          has: function (id) { return _favs.indexOf(String(id)) >= 0; },
+          count: function () { return _favs.length; },
+          add: function (id) { var s = String(id); if (_favs.indexOf(s) < 0) { _favs.push(s); persistFavs(); } },
+          remove: function (id) { _favs = _favs.filter(function (x) { return x !== String(id); }); persistFavs(); },
+          toggle: function (id) {
+            var s = String(id); var i = _favs.indexOf(s);
+            if (i >= 0) { _favs.splice(i, 1); persistFavs(); return false; }
+            _favs.push(s); persistFavs(); return true;
+          }
+        };
+      }
+    })();
+  </script>
+
   <script src="js/theme-loader.js?v=9"></script>
   <script src="js/cart.js?v=9"></script>
   <script src="js/footer.js?v=4"></script>
-  <script src="js/public-sidebar.js?v=5"></script>
   <script src="js/liquid-glass.js?v=4"></script>
+  <script src="js/services/products-service.js?v=5"></script>
+  <script src="js/ui/product-card.js?v=5"></script>
 
   <style>
     body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+
+    /* Estilos Liquid Glass */
+    .glass-container {
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    .glass-card-product {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+
+    .glass-card-product:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    /* Animaciones para acordeón y transiciones */
+    .cat-sub-list {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.25s ease-out, opacity 0.2s ease-out;
+      opacity: 0;
+    }
+    .cat-sub-list.open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+    .cat-sub-list > div {
+      overflow: hidden;
+    }
+
+    .chevron-icon {
+      transition: transform 0.25s ease;
+    }
+    .chevron-icon.rotated {
+      transform: rotate(180deg);
+    }
+
+    /* Item activo en sidebar */
+    .cat-item-active {
+      background-color: rgba(16, 185, 129, 0.12) !important;
+      color: #047857 !important;
+      font-weight: 800 !important;
+      border-left: 4px solid #10b981 !important;
+    }
+
+    .fav-btn { color: #94a3b8; transition: color .15s ease; }
+    .fav-btn:hover, .fav-btn.fav-active { color: #ef4444 !important; }
+    .no-click { cursor: default; }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col text-slate-800">
 
-  <!-- Sidebar público -->
-  <div id="publicSidebar"></div>
-
   <!-- HEADER NAVEGACIÓN GLOBAL -->
   <header class="glass-header text-white shadow-lg sticky top-0 z-40 border-b border-white/10 theme-header">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
       <div class="flex items-center gap-3 min-w-0">
         <button id="sidebarToggleBtn" type="button"
           class="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition flex items-center justify-center border border-white/15 text-white"
-          title="Menú" aria-label="Abrir menú">
+          title="Menú / Categorías" aria-label="Abrir categorías">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="3" y1="6"  x2="21" y2="6"></line>
             <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -53,10 +144,21 @@
       </div>
 
       <div class="flex items-center gap-2">
+        <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-2 rounded-xl border border-white/15 flex items-center gap-1.5 transition">
+          <span>🏠</span>
+          <span class="hidden sm:inline">Inicio</span>
+        </a>
+
+        <a href="ofertas.html" class="bg-rose-500/90 hover:bg-rose-600 text-white font-bold text-xs px-3 py-2 rounded-xl border border-rose-300/30 flex items-center gap-1.5 shadow-sm transition">
+          <span>🔥</span>
+          <span class="hidden sm:inline">Ofertas</span>
+        </a>
+
         <a href="categorias.html" class="bg-white/20 text-white font-bold text-xs px-3 py-2 rounded-xl border border-white/20 flex items-center gap-1.5 shadow-sm">
           <span>🏷️</span>
           <span class="hidden sm:inline">Categorías</span>
         </a>
+
         <button type="button" onclick="if(window.PasajeCart) window.PasajeCart.openDrawer();"
            class="relative bg-white/10 hover:bg-white/20 p-2 rounded-xl transition border border-white/15 text-white flex items-center justify-center" title="Carrito">
           🛒
@@ -66,157 +168,1061 @@
         <a id="favBtn" href="favoritos.html"
            class="relative bg-white/10 hover:bg-white/20 p-2 rounded-xl transition border border-white/15 text-white" title="Mis favoritos">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span id="favCount" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow">0</span>
         </a>
       </div>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-1">
-    
-    <!-- ENCABEZADO DE SECCIÓN -->
-    <section class="mb-8 glass-container p-6 rounded-3xl">
-      <div class="flex items-center gap-3">
-        <span class="text-3xl">🏷️</span>
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-black text-slate-900">Directorio de Categorías</h1>
-          <p class="text-xs sm:text-sm font-medium text-slate-600 mt-0.5">Explora las secciones y subcategorías de productos disponibles en la comunidad.</p>
-        </div>
+  <!-- DRAWER MÓVIL DEDICADO DE CATEGORÍAS Y NAVEGACIÓN -->
+  <div id="catDrawerBackdrop" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 lg:hidden transition-opacity"></div>
+  <aside id="catDrawerPanel" class="hidden fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white z-50 lg:hidden shadow-2xl flex flex-col transition-transform">
+    <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🏷️</span>
+        <h2 class="font-extrabold text-slate-900 text-sm">Menú y Categorías</h2>
       </div>
-    </section>
+      <button id="catDrawerCloseBtn" type="button" class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center">✕</button>
+    </div>
 
-    <!-- GRILLA DE CATEGORÍAS PADRE E HIJAS -->
-    <div id="categoryTreeContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div class="col-span-full py-12 text-center text-slate-400 font-semibold text-sm">
-        Cargando directorio de categorías...
+    <!-- Links rápidos de navegación en drawer móvil -->
+    <div class="p-3 border-b border-slate-100 bg-slate-50/50 flex gap-2">
+      <a href="index.html" class="flex-1 bg-white border border-slate-200 text-slate-700 font-bold text-xs py-2 px-3 rounded-xl text-center shadow-sm">🏠 Inicio</a>
+      <a href="ofertas.html" class="flex-1 bg-white border border-slate-200 text-slate-700 font-bold text-xs py-2 px-3 rounded-xl text-center shadow-sm">🔥 Ofertas</a>
+      <a href="favoritos.html" class="flex-1 bg-white border border-slate-200 text-slate-700 font-bold text-xs py-2 px-3 rounded-xl text-center shadow-sm">❤️ Favoritos</a>
+    </div>
+
+    <div class="p-3 border-b border-slate-100 bg-white">
+      <div class="relative">
+        <input type="text" id="mobileCategorySearchInput" placeholder="Buscar categoría..."
+          class="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50">
+        <span class="absolute left-2.5 top-2.5 text-xs text-slate-400">🔍</span>
       </div>
     </div>
+
+    <div id="mobileCategoryTreeMount" class="flex-1 overflow-y-auto p-3 space-y-1">
+      <!-- Se inyecta dinámicamente -->
+    </div>
+  </aside>
+
+  <!-- CONTENEDOR PRINCIPAL: SIDEBAR PROPIO + GRILLA CATÁLOGO -->
+  <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 flex flex-col lg:flex-row gap-6">
+
+    <!-- 1. SIDEBAR LATERAL PROPIO DE CATEGORÍAS (DESKTOP) -->
+    <aside class="hidden lg:block w-72 flex-shrink-0 space-y-4">
+      <div class="glass-container p-4 rounded-3xl shadow-sm border border-slate-200/80 sticky top-20">
+        
+        <!-- Accesos Rápidos Superior -->
+        <div class="mb-4 pb-3 border-b border-slate-100 space-y-1">
+          <a href="index.html" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition">
+            <span class="flex items-center gap-2"><span>🏠</span><span>Página Principal</span></span>
+            <span class="text-slate-400">→</span>
+          </a>
+          <a href="ofertas.html" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition">
+            <span class="flex items-center gap-2"><span>🔥</span><span>Ofertas Relámpago</span></span>
+            <span class="text-slate-400">→</span>
+          </a>
+          <a href="favoritos.html" class="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition">
+            <span class="flex items-center gap-2"><span>❤️</span><span>Mis Favoritos</span></span>
+            <span class="text-slate-400">→</span>
+          </a>
+        </div>
+
+        <!-- Encabezado Directorio -->
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">🏷️</span>
+            <h2 class="font-extrabold text-slate-900 text-sm">Directorio</h2>
+          </div>
+          <button id="btnClearCategoryFilter" type="button" class="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 hover:underline">
+            Ver todas
+          </button>
+        </div>
+
+        <!-- Buscador Predictivo de Categorías con Debounce -->
+        <div class="mb-3 relative">
+          <input type="text" id="desktopCategorySearchInput" placeholder="Filtrar categorías..."
+            class="w-full pl-8 pr-7 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none bg-white/90">
+          <span class="absolute left-2.5 top-2 text-xs text-slate-400">🔍</span>
+          <button id="btnClearCatSearch" type="button" class="hidden absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold">✕</button>
+        </div>
+
+        <!-- Lista Jerárquica de Categorías y Subcategorías -->
+        <div id="desktopCategoryTreeMount" class="space-y-1 max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+          <p class="p-4 text-center text-xs text-slate-400 font-medium">Cargando categorías...</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 2. ÁREA PRINCIPAL DINÁMICA DE CATALOGO -->
+    <section class="flex-1 min-w-0 space-y-5">
+
+      <!-- ENCABEZADO DE CATEGORÍA SELECCIONADA -->
+      <div id="categoryHeaderBanner" class="glass-container p-6 rounded-3xl relative overflow-hidden transition-all duration-300">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+          <div class="flex items-center gap-3">
+            <span id="catHeaderIcon" class="text-4xl p-3 bg-white/90 rounded-2xl shadow-sm border border-slate-100/80 flex-shrink-0">🛍️</span>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h1 id="catHeaderTitle" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Todas las Categorías</h1>
+                <span id="catHeaderBadge" class="hidden text-[10px] font-black px-2.5 py-0.5 rounded-full border"></span>
+              </div>
+              <p id="catHeaderDesc" class="text-xs sm:text-sm font-semibold text-slate-600 mt-1">
+                Explora todos los productos de nuestros artesanos y comercios locales.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-2xl border border-slate-200/80 shadow-sm flex-shrink-0">
+            <span class="text-xs font-bold text-slate-500">Productos:</span>
+            <span id="catHeaderCount" class="text-xs font-black text-emerald-700">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTROLES DE FILTRADO DE PRODUCTOS Y ORDENAMIENTO -->
+      <div class="glass-container p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm border border-slate-200/80">
+        <!-- Buscador dentro del catálogo -->
+        <div class="relative w-full sm:w-72">
+          <input type="text" id="catalogProductSearch" placeholder="Buscar producto en esta categoría..."
+            class="w-full pl-8 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+          <span class="absolute left-2.5 top-2.5 text-xs text-slate-400">🛍️</span>
+        </div>
+
+        <!-- Ordenamiento -->
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <label for="catalogSortBy" class="text-xs font-bold text-slate-600 whitespace-nowrap">Ordenar por:</label>
+          <select id="catalogSortBy" class="border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+            <option value="recent">✨ Más recientes</option>
+            <option value="popular">🔥 Más populares</option>
+            <option value="price-asc">💵 Menor precio</option>
+            <option value="price-desc">💎 Mayor precio</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- GRILLA RESPONSIVA DE PRODUCTOS -->
+      <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <!-- Estado inicial de carga -->
+        <div class="col-span-full py-16 text-center text-slate-400 font-semibold text-sm">
+          <div class="text-3xl mb-2 animate-bounce">📦</div>
+          Cargando catálogo de productos...
+        </div>
+      </div>
+
+      <!-- PAGINACIÓN / BOTÓN DE CARGAR MÁS -->
+      <div id="paginationContainer" class="hidden text-center pt-4">
+        <button id="btnLoadMore" type="button"
+          class="bg-slate-900 hover:bg-emerald-600 text-white font-extrabold text-xs px-6 py-3 rounded-2xl shadow-md transition-all duration-200">
+          Cargar más productos
+        </button>
+      </div>
+
+    </section>
   </main>
 
+  <!-- FOOTER GLOBAL -->
   <div id="pasajeFooter"></div>
 
+  <!-- MODAL VISTA RÁPIDA DE PRODUCTOS -->
+  <div id="productModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
+    <div class="relative w-full max-w-2xl">
+      <div id="modalProductNavWrapper"></div>
+
+      <div class="bg-white rounded-3xl shadow-2xl max-h-[88vh] overflow-y-auto">
+        <div id="productModalContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LÓGICA DE CONTROLADORES Y RENDERIZADO -->
   <script>
-    document.getElementById('sidebarToggleBtn')?.addEventListener('click', () => {
-      if (typeof window.togglePublicSidebar === 'function') window.togglePublicSidebar();
+    // ESTADO GLOBAL DE LA PÁGINA
+    let allCategories = [];
+    let productCounts = {};
+    let activeCategorySlug = 'todas';
+    let expandedParents = new Set();
+    
+    const loadedProductsMap = new Map();
+    let currentProducts = [];
+    let currentPage = 0;
+    const PAGE_SIZE = 12;
+    let hasMoreProducts = false;
+    
+    let categorySearchTerm = '';
+    let productSearchTerm = '';
+    let currentSortBy = 'recent';
+
+    // ESTADO DE VISTA RÁPIDA (MODAL)
+    let activeModalProducts = [];
+    let activeProductIndex = -1;
+    let activeGalleryIndex = 0;
+
+    // ELEMENTOS DEL DOM
+    const desktopTreeMount = document.getElementById('desktopCategoryTreeMount');
+    const mobileTreeMount = document.getElementById('mobileCategoryTreeMount');
+    const desktopCatSearch = document.getElementById('desktopCategorySearchInput');
+    const mobileCatSearch = document.getElementById('mobileCategorySearchInput');
+    const btnClearCatSearch = document.getElementById('btnClearCatSearch');
+    
+    const productsGrid = document.getElementById('productsGrid');
+    const catalogProductSearch = document.getElementById('catalogProductSearch');
+    const catalogSortBy = document.getElementById('catalogSortBy');
+    const btnLoadMore = document.getElementById('btnLoadMore');
+    const paginationContainer = document.getElementById('paginationContainer');
+    const favCountEl = document.getElementById('favCount');
+
+    // MODAL DOM
+    const productModal = document.getElementById('productModal');
+    const productModalContent = document.getElementById('productModalContent');
+    const modalProductNavWrapper = document.getElementById('modalProductNavWrapper');
+
+    // BOTONES Y DRAWER MÓVIL DEDICADO
+    const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+    const catDrawerCloseBtn = document.getElementById('catDrawerCloseBtn');
+    const catDrawerPanel = document.getElementById('catDrawerPanel');
+    const catDrawerBackdrop = document.getElementById('catDrawerBackdrop');
+
+    // INICIALIZACIÓN
+    document.addEventListener('DOMContentLoaded', async () => {
+      updateFavCount();
+
+      // Leer parámetro URL inicial (?cat=slug o ?sub=slug)
+      const urlParams = new URLSearchParams(window.location.search);
+      activeCategorySlug = urlParams.get('cat') || urlParams.get('sub') || 'todas';
+
+      // Cargar datos
+      await fetchCategoriesAndCounts();
+      
+      // Auto-expandir categoría padre si el slug activo pertenece a una subcategoría
+      autoExpandActiveParent();
+
+      renderSidebarTrees();
+      await loadProducts(true);
+
+      // EVENT LISTENERS DE CONTROLES DE BÚSQUEDA Y NAVEGACIÓN
+      desktopCatSearch?.addEventListener('input', debounce((e) => {
+        categorySearchTerm = e.target.value.trim();
+        btnClearCatSearch.classList.toggle('hidden', !categorySearchTerm);
+        renderSidebarTrees();
+      }, 250));
+
+      mobileCatSearch?.addEventListener('input', debounce((e) => {
+        categorySearchTerm = e.target.value.trim();
+        renderSidebarTrees();
+      }, 250));
+
+      btnClearCatSearch?.addEventListener('click', () => {
+        desktopCatSearch.value = '';
+        categorySearchTerm = '';
+        btnClearCatSearch.classList.add('hidden');
+        renderSidebarTrees();
+      });
+
+      document.getElementById('btnClearCategoryFilter')?.addEventListener('click', () => {
+        selectCategory('todas');
+      });
+
+      catalogProductSearch?.addEventListener('input', debounce((e) => {
+        productSearchTerm = e.target.value.trim();
+        loadProducts(true);
+      }, 250));
+
+      catalogSortBy?.addEventListener('change', (e) => {
+        currentSortBy = e.target.value;
+        loadProducts(true);
+      });
+
+      btnLoadMore?.addEventListener('click', () => {
+        if (hasMoreProducts) {
+          currentPage++;
+          loadProducts(false);
+        }
+      });
+
+      // MANEJO DE DRAWER MÓVIL
+      const toggleCatDrawer = (show) => {
+        if (show) {
+          catDrawerBackdrop.classList.remove('hidden');
+          catDrawerPanel.classList.remove('hidden');
+        } else {
+          catDrawerBackdrop.classList.add('hidden');
+          catDrawerPanel.classList.add('hidden');
+        }
+      };
+
+      sidebarToggleBtn?.addEventListener('click', () => toggleCatDrawer(true));
+      catDrawerCloseBtn?.addEventListener('click', () => toggleCatDrawer(false));
+      catDrawerBackdrop?.addEventListener('click', () => toggleCatDrawer(false));
+
+      // SOPORTE PARA BOTONES NAVEGADOR (ATRÁS / ADELANTE)
+      window.addEventListener('popstate', () => {
+        const params = new URLSearchParams(window.location.search);
+        activeCategorySlug = params.get('cat') || params.get('sub') || 'todas';
+        autoExpandActiveParent();
+        renderSidebarTrees();
+        loadProducts(true);
+      });
+
+      // EVENT DELEGATION PARA INTERACCIONES EN LA GRILLA
+      productsGrid.addEventListener('click', handleProductActionClick);
+
+      // EVENT LISTENERS PARA MODAL Y TECLADO
+      attachModalEvents();
     });
 
-    async function loadCategoryTree() {
-      const container = document.getElementById('categoryTreeContainer');
-      if (!window._supabase) {
-        container.innerHTML = '<p class="col-span-full text-center text-rose-500 font-bold">Error de conexión con la base de datos.</p>';
-        return;
-      }
+    // DEBOUNCE HELPER (250MS)
+    function debounce(fn, delay = 250) {
+      let timer = null;
+      return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+      };
+    }
+
+    function updateFavCount() {
+      if (!favCountEl || !window.Favorites) return;
+      const n = window.Favorites.count();
+      if (n === 0) favCountEl.classList.add('hidden');
+      else { favCountEl.textContent = n; favCountEl.classList.remove('hidden'); }
+    }
+
+    // 1. OBTENER CATEGORÍAS Y CONTEO REAL DE PRODUCTOS ACTIVOS
+    async function fetchCategoriesAndCounts() {
+      if (!window._supabase) return;
 
       try {
-        // Cargar todas las categorías activas
-        const { data: categories, error: catErr } = await window._supabase
+        // Cargar categorías activas ordenadas
+        const { data: catData, error: catErr } = await window._supabase
           .from('categories')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true });
 
         if (catErr) throw catErr;
+        allCategories = catData || [];
 
-        // Cargar conteo de productos por categoría
-        const { data: products } = await window._supabase
+        // Cargar productos activos vinculados a tiendas no suspendidas
+        const { data: prodData } = await window._supabase
           .from('products')
-          .select('id, category_id')
-          .eq('is_active', true);
+          .select(`id, category_id, stores!inner(is_active, is_suspended)`)
+          .eq('is_active', true)
+          .eq('stores.is_active', true)
+          .eq('stores.is_suspended', false);
 
-        const prodCounts = {};
-        (products || []).forEach(p => {
+        productCounts = {};
+        let totalActiveProducts = 0;
+
+        (prodData || []).forEach(p => {
+          totalActiveProducts++;
           if (p.category_id != null) {
             const key = String(p.category_id);
-            prodCounts[key] = (prodCounts[key] || 0) + 1;
+            productCounts[key] = (productCounts[key] || 0) + 1;
           }
         });
 
-        // Separar Padres e Hijas
-        const mainCategories = categories.filter(c => !c.parent_id);
-        const childMap = new Map();
-
-        categories.forEach(c => {
-          if (c.parent_id) {
-            const parentKey = String(c.parent_id);
-            if (!childMap.has(parentKey)) childMap.set(parentKey, []);
-            childMap.get(parentKey).push(c);
-          }
-        });
-
-        if (mainCategories.length === 0) {
-          container.innerHTML = '<p class="col-span-full text-center text-slate-500 font-semibold">No hay categorías configuradas.</p>';
-          return;
-        }
-
-        container.innerHTML = mainCategories.map(parent => {
-          const children = childMap.get(String(parent.id)) || [];
-          const directCount = prodCounts[String(parent.id)] || 0;
-          
-          // Sumar productos de subcategorías
-          let totalBranchCount = directCount;
-          children.forEach(ch => {
-            totalBranchCount += (prodCounts[String(ch.id)] || 0);
-          });
-
-          const childrenHTML = children.map(ch => {
-            const chCount = prodCounts[String(ch.id)] || 0;
-            return `
-              <a href="index.html?cat=${encodeURIComponent(ch.slug)}"
-                 class="group/sub bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200/80 hover:border-emerald-300 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center justify-between gap-2 shadow-sm">
-                <span class="flex items-center gap-1.5 truncate">
-                  <span>${ch.icon || '📌'}</span>
-                  <span class="truncate">${ch.name}</span>
-                </span>
-                <span class="bg-white group-hover/sub:bg-emerald-100 text-slate-500 group-hover/sub:text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200/60">
-                  ${chCount}
-                </span>
-              </a>`;
-          }).join('');
-
-          return `
-            <div class="glass-container p-6 rounded-3xl border border-slate-200/70 hover:shadow-xl transition flex flex-col justify-between">
-              <div>
-                <div class="flex items-start justify-between gap-3 mb-4">
-                  <div class="flex items-center gap-3">
-                    <span class="text-3xl p-3 bg-white/80 rounded-2xl shadow-sm border border-slate-100">${parent.icon || '📦'}</span>
-                    <div>
-                      <a href="index.html?cat=${encodeURIComponent(parent.slug)}" class="text-lg font-extrabold text-slate-900 hover:text-emerald-600 transition">
-                        ${parent.name}
-                      </a>
-                      <p class="text-xs font-semibold text-slate-500 mt-0.5">
-                        ${totalBranchCount} producto${totalBranchCount === 1 ? '' : 's'} en total
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <a href="index.html?cat=${encodeURIComponent(parent.slug)}" 
-                     class="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl transition flex-shrink-0">
-                    Ver todo →
-                  </a>
-                </div>
-
-                ${children.length > 0 ? `
-                  <div class="pt-3 border-t border-slate-100">
-                    <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">Subcategorías</span>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      ${childrenHTML}
-                    </div>
-                  </div>
-                ` : `
-                  <div class="pt-3 border-t border-slate-100 text-xs text-slate-400 italic">
-                    Sin subcategorías específicas
-                  </div>
-                `}
-              </div>
-            </div>`;
-        }).join('');
-
+        productCounts['todas'] = totalActiveProducts;
       } catch (err) {
-        console.error('[Categorias] Error cargando árbol:', err);
-        container.innerHTML = '<p class="col-span-full text-center text-rose-500 font-bold">Ocurrió un error al cargar las categorías.</p>';
+        console.error('[Categorias] Error al obtener datos:', err);
       }
     }
 
-    loadCategoryTree();
+    function autoExpandActiveParent() {
+      if (activeCategorySlug === 'todas') return;
+      const currentCat = allCategories.find(c => c.slug === activeCategorySlug);
+      if (currentCat && currentCat.parent_id) {
+        expandedParents.add(String(currentCat.parent_id));
+      }
+    }
+
+    // 2. RENDERIZAR ÁRBOL DE CATEGORÍAS EN SIDEBARS (DESKTOP & MÓVIL)
+    function renderSidebarTrees() {
+      const treeHTML = buildCategoryTreeHTML();
+      if (desktopTreeMount) desktopTreeMount.innerHTML = treeHTML;
+      if (mobileTreeMount) mobileTreeMount.innerHTML = treeHTML;
+
+      bindSidebarEvents(desktopTreeMount);
+      bindSidebarEvents(mobileTreeMount);
+    }
+
+    function buildCategoryTreeHTML() {
+      if (allCategories.length === 0) {
+        return '<p class="p-4 text-center text-xs text-slate-400">No hay categorías disponibles.</p>';
+      }
+
+      const term = categorySearchTerm.toLowerCase();
+      
+      // Separar Padres e Hijas
+      const mainCategories = allCategories.filter(c => !c.parent_id);
+      const childMap = new Map();
+
+      allCategories.forEach(c => {
+        if (c.parent_id) {
+          const pKey = String(c.parent_id);
+          if (!childMap.has(pKey)) childMap.set(pKey, []);
+          childMap.get(pKey).push(c);
+        }
+      });
+
+      // Botón "Todas las Categorías"
+      const isTodasActive = activeCategorySlug === 'todas';
+      let html = `
+        <button type="button" data-cat-slug="todas"
+          class="w-full text-left px-3 py-2 rounded-2xl text-xs font-bold transition flex items-center justify-between gap-2 ${isTodasActive ? 'cat-item-active' : 'hover:bg-slate-100 text-slate-700'}">
+          <span class="flex items-center gap-2 truncate">
+            <span>🛍️</span>
+            <span class="truncate">Todas las Categorías</span>
+          </span>
+          <span class="text-[10px] bg-slate-200/80 text-slate-600 font-extrabold px-2 py-0.5 rounded-full">
+            ${productCounts['todas'] || 0}
+          </span>
+        </button>
+      `;
+
+      let hasMatch = false;
+
+      mainCategories.forEach(parent => {
+        const children = childMap.get(String(parent.id)) || [];
+        
+        // Sumar productos directos + subcategorías
+        let parentProductSum = productCounts[String(parent.id)] || 0;
+        children.forEach(ch => {
+          parentProductSum += (productCounts[String(ch.id)] || 0);
+        });
+
+        // Filtrado predictivo
+        const parentMatches = parent.name.toLowerCase().includes(term) || parent.slug.toLowerCase().includes(term);
+        const matchingChildren = children.filter(ch => 
+          ch.name.toLowerCase().includes(term) || ch.slug.toLowerCase().includes(term)
+        );
+
+        if (term && !parentMatches && matchingChildren.length === 0) {
+          return; // No coincide la búsqueda
+        }
+
+        hasMatch = true;
+        const isExpanded = term ? true : expandedParents.has(String(parent.id));
+        const isParentActive = activeCategorySlug === parent.slug;
+
+        const childrenHTML = children.map(ch => {
+          if (term && !parentMatches && !ch.name.toLowerCase().includes(term)) return '';
+          
+          const isChildActive = activeCategorySlug === ch.slug;
+          const chCount = productCounts[String(ch.id)] || 0;
+
+          return `
+            <button type="button" data-cat-slug="${ch.slug}"
+              class="w-full text-left pl-7 pr-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition flex items-center justify-between gap-2 ${isChildActive ? 'cat-item-active' : 'hover:bg-slate-100/80 text-slate-600'}">
+              <span class="flex items-center gap-1.5 truncate">
+                <span class="text-slate-400 font-normal">↳</span>
+                <span>${ch.icon || '📌'}</span>
+                <span class="truncate">${ch.name}</span>
+              </span>
+              <span class="text-[10px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.2 rounded-full">
+                ${chCount}
+              </span>
+            </button>
+          `;
+        }).join('');
+
+        html += `
+          <div class="space-y-0.5">
+            <div class="flex items-center justify-between rounded-2xl ${isParentActive ? 'cat-item-active' : 'hover:bg-slate-100'}">
+              <button type="button" data-cat-slug="${parent.slug}"
+                class="flex-1 text-left px-3 py-2 text-xs font-bold transition flex items-center justify-between gap-2 min-w-0">
+                <span class="flex items-center gap-2 truncate">
+                  <span>${parent.icon || '📦'}</span>
+                  <span class="truncate">${parent.name}</span>
+                </span>
+                <span class="text-[10px] bg-slate-200/60 text-slate-600 font-extrabold px-2 py-0.5 rounded-full flex-shrink-0">
+                  ${parentProductSum}
+                </span>
+              </button>
+
+              ${children.length > 0 ? `
+                <button type="button" data-toggle-parent="${parent.id}" class="p-2 text-slate-400 hover:text-slate-700 flex-shrink-0" title="Desplegar subcategorías">
+                  <svg class="w-3.5 h-3.5 chevron-icon ${isExpanded ? 'rotated' : ''}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              ` : ''}
+            </div>
+
+            ${children.length > 0 ? `
+              <div class="cat-sub-list ${isExpanded ? 'open' : ''}">
+                <div class="space-y-0.5 pt-0.5">
+                  ${childrenHTML}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
+
+      if (term && !hasMatch) {
+        return `<p class="p-4 text-center text-xs text-slate-400">Sin categorías coincidentes con "${term}".</p>`;
+      }
+
+      return html;
+    }
+
+    function bindSidebarEvents(container) {
+      if (!container) return;
+
+      // Evento para seleccionar categoría
+      container.querySelectorAll('[data-cat-slug]').forEach(btn => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const slug = btn.dataset.catSlug;
+          selectCategory(slug);
+          
+          // Cerrar drawer móvil si aplica
+          catDrawerBackdrop.classList.add('hidden');
+          catDrawerPanel.classList.add('hidden');
+        };
+      });
+
+      // Evento para expandir/colapsar acordeón
+      container.querySelectorAll('[data-toggle-parent]').forEach(btn => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const parentId = String(btn.dataset.toggleParent);
+          if (expandedParents.has(parentId)) {
+            expandedParents.delete(parentId);
+          } else {
+            expandedParents.add(parentId);
+          }
+          renderSidebarTrees();
+        };
+      });
+    }
+
+    // 3. CAMBIAR CATEGORÍA Y ACTUALIZAR ENCABEZADO Y GRILLA DINÁMICAMENTE (AJAX)
+    function selectCategory(slug) {
+      activeCategorySlug = slug || 'todas';
+
+      // Actualizar URL sin recargar
+      const url = new URL(window.location.href);
+      if (activeCategorySlug === 'todas') {
+        url.searchParams.delete('cat');
+        url.searchParams.delete('sub');
+      } else {
+        url.searchParams.set('cat', activeCategorySlug);
+      }
+      window.history.pushState({}, '', url.toString());
+
+      autoExpandActiveParent();
+      renderSidebarTrees();
+      loadProducts(true);
+    }
+
+    // 4. CUALQUIER ACTUALIZACIÓN DE PRODUCTOS (GRILLA Y HEADER)
+    async function loadProducts(reset = true) {
+      if (reset) {
+        currentPage = 0;
+        currentProducts = [];
+        loadedProductsMap.clear();
+        productsGrid.innerHTML = `
+          <div class="col-span-full py-16 text-center text-slate-400 font-semibold text-sm">
+            <div class="text-3xl mb-2 animate-bounce">📦</div>
+            Cargando catálogo...
+          </div>`;
+      }
+
+      // Actualizar Encabezado Dinámico
+      updateCategoryHeaderUI();
+
+      try {
+        let queryCategoryIds = [];
+        const isTodas = activeCategorySlug === 'todas';
+
+        if (!isTodas) {
+          const selectedCat = allCategories.find(c => c.slug === activeCategorySlug);
+          if (selectedCat) {
+            queryCategoryIds.push(selectedCat.id);
+            // Si es un Padre, incluir también los IDs de todas sus Subcategorías
+            if (!selectedCat.parent_id) {
+              allCategories.filter(c => String(c.parent_id) === String(selectedCat.id)).forEach(ch => {
+                queryCategoryIds.push(ch.id);
+              });
+            }
+          }
+        }
+
+        // Consulta a Supabase
+        let selectQuery = `
+          id, title, description, price, original_price, is_on_sale, sale_expires_at, image_url, image_urls, is_featured, is_active,
+          stock_quantity, badge_tag, prep_time, min_order_qty, favorites_count,
+          store_id, category_id, created_at,
+          stores!inner ( id, name, whatsapp, slug, address, logo_url, is_active, is_suspended, is_verified ),
+          categories ( id, name, slug, icon ),
+          product_images ( id, image_url, sort_order ),
+          product_variants ( id, variant_group, name, price_adjustment, stock_quantity )
+        `;
+
+        const from = currentPage * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        let dbQuery = window._supabase
+          .from('products')
+          .select(selectQuery, { count: 'exact' })
+          .eq('is_active', true)
+          .eq('stores.is_active', true)
+          .eq('stores.is_suspended', false);
+
+        if (!isTodas && queryCategoryIds.length > 0) {
+          dbQuery = dbQuery.in('category_id', queryCategoryIds);
+        }
+
+        if (productSearchTerm) {
+          dbQuery = dbQuery.ilike('title', `%${productSearchTerm}%`);
+        }
+
+        switch (currentSortBy) {
+          case 'popular':
+            dbQuery = dbQuery.order('favorites_count', { ascending: false }).order('created_at', { ascending: false });
+            break;
+          case 'price-asc':
+            dbQuery = dbQuery.order('price', { ascending: true });
+            break;
+          case 'price-desc':
+            dbQuery = dbQuery.order('price', { ascending: false });
+            break;
+          case 'recent':
+          default:
+            dbQuery = dbQuery.order('created_at', { ascending: false });
+            break;
+        }
+
+        dbQuery = dbQuery.range(from, to);
+
+        const { data, count, error } = await dbQuery;
+
+        if (error) throw error;
+
+        const normalized = (data || []).map(p => window.ProductsService ? window.ProductsService.normalizeProduct(p) : p);
+
+        normalized.forEach(p => loadedProductsMap.set(String(p.id), p));
+
+        if (reset) {
+          currentProducts = normalized;
+        } else {
+          currentProducts = [...currentProducts, ...normalized];
+        }
+
+        const totalFetched = currentProducts.length;
+        const totalAvailable = count || 0;
+        hasMoreProducts = totalFetched < totalAvailable;
+
+        // Actualizar contador del Header con el resultado exacto de la consulta
+        document.getElementById('catHeaderCount').textContent = totalAvailable;
+
+        renderProductsGrid();
+      } catch (err) {
+        console.error('[Categorias] Error al cargar productos:', err);
+        productsGrid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-rose-500 font-bold text-sm">
+            Ocurrió un error al cargar los productos de esta categoría.
+          </div>`;
+      }
+    }
+
+    // 5. ACTUALIZAR ENCABEZADO PRINCIPAL DE LA CATEGORÍA
+    function updateCategoryHeaderUI() {
+      const titleEl = document.getElementById('catHeaderTitle');
+      const iconEl = document.getElementById('catHeaderIcon');
+      const descEl = document.getElementById('catHeaderDesc');
+      const badgeEl = document.getElementById('catHeaderBadge');
+
+      if (activeCategorySlug === 'todas') {
+        titleEl.textContent = 'Todas las Categorías';
+        iconEl.textContent = '🛍️';
+        descEl.textContent = 'Explora todos los productos de nuestros artesanos y comercios locales.';
+        badgeEl.classList.add('hidden');
+        return;
+      }
+
+      const selectedCat = allCategories.find(c => c.slug === activeCategorySlug);
+      if (selectedCat) {
+        titleEl.textContent = selectedCat.name;
+        iconEl.textContent = selectedCat.icon || '📦';
+        
+        if (selectedCat.parent_id) {
+          const parentCat = allCategories.find(c => String(c.id) === String(selectedCat.parent_id));
+          descEl.textContent = parentCat ? `Subcategoría de ${parentCat.name}.` : 'Subcategoría especializada.';
+        } else {
+          descEl.textContent = `Productos y especialidades en la sección de ${selectedCat.name}.`;
+        }
+
+        if (selectedCat.seasonal_tag) {
+          badgeEl.textContent = `🔥 ${selectedCat.seasonal_tag.toUpperCase()}`;
+          badgeEl.style.backgroundColor = (selectedCat.badge_color || '#10B981') + '20';
+          badgeEl.style.color = selectedCat.badge_color || '#10B981';
+          badgeEl.style.borderColor = selectedCat.badge_color || '#10B981';
+          badgeEl.classList.remove('hidden');
+        } else {
+          badgeEl.classList.add('hidden');
+        }
+      }
+    }
+
+    // 6. RENDERIZAR GRILLA DE PRODUCTOS ESTILO LIQUID GLASS CON EVENT DELEGATION
+    function renderProductsGrid() {
+      if (currentProducts.length === 0) {
+        productsGrid.innerHTML = `
+          <div class="col-span-full glass-container p-12 text-center rounded-3xl">
+            <span class="text-4xl block mb-2">🔍</span>
+            <h3 class="font-extrabold text-slate-800 text-base">No se encontraron productos</h3>
+            <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              No hay productos disponibles actualmente en esta categoría o filtro de búsqueda.
+            </p>
+            <button onclick="selectCategory('todas')" class="mt-4 bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-emerald-700 transition">
+              Ver todos los productos
+            </button>
+          </div>`;
+        paginationContainer.classList.add('hidden');
+        return;
+      }
+
+      const e = (str) => String(str ?? '').replace(/"/g, '&quot;');
+
+      productsGrid.innerHTML = currentProducts.map(p => {
+        const isFav = window.Favorites && window.Favorites.has(p.id);
+        const heartIcon = window.heartSVG ? window.heartSVG(isFav) : '❤️';
+        const storeLogo = p.store_logo || window.PLACEHOLDER_IMG;
+
+        const waMessage = 'Hola, me interesa en Pasaje de los Altos: ' + p.title;
+        const waUrl = `https://wa.me/${p.store_whatsapp}?text=${encodeURIComponent(waMessage)}`;
+
+        return `
+          <div class="product-card glass-card-product group relative rounded-2xl overflow-hidden flex flex-col justify-between" data-product-id="${p.id}">
+            <!-- Imagen & Insignias -->
+            <div class="relative aspect-square w-full overflow-hidden bg-slate-100">
+              <img src="${e(p.image_url || window.PLACEHOLDER_IMG)}" alt="${e(p.title)}"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy"
+                onerror="this.onerror=null;this.src=window.PLACEHOLDER_IMG">
+              
+              ${p.is_on_sale ? `
+                <span class="absolute top-2.5 left-2.5 bg-rose-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow">
+                  OFERTA
+                </span>
+              ` : ''}
+
+              <span class="absolute bottom-2.5 left-2.5 bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span>${p.category_icon || '📦'}</span>
+                <span class="truncate max-w-[110px]">${e(p.category_name)}</span>
+              </span>
+
+              <button type="button" data-action="toggle-fav" data-product-id="${p.id}"
+                class="fav-btn absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-rose-500 transition shadow-sm ${isFav ? 'fav-active text-rose-500' : ''}"
+                style="${isFav ? 'color: #ef4444;' : ''}">
+                ${heartIcon}
+              </button>
+            </div>
+
+            <!-- Cuerpo Info -->
+            <div class="p-4 flex-1 flex flex-col justify-between">
+              <div>
+                <a href="tienda.html?slug=${encodeURIComponent(p.store_slug || '')}" class="no-click inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:underline mb-1 truncate">
+                  <img src="${e(storeLogo)}" class="w-4 h-4 rounded-full object-cover bg-slate-200" onerror="this.onerror=null;this.src=window.PLACEHOLDER_IMG">
+                  <span class="truncate">${e(p.store_name)}</span>
+                  ${p.store_is_verified ? '<span class="text-blue-500 text-[10px]">✓</span>' : ''}
+                </a>
+
+                <h3 class="font-extrabold text-slate-900 text-xs sm:text-sm line-clamp-2 group-hover:text-emerald-600 transition mb-2">
+                  ${e(p.title)}
+                </h3>
+              </div>
+
+              <div>
+                <div class="flex items-baseline gap-2 mb-3">
+                  <span class="text-base font-black text-slate-900">Q${parseFloat(p.price || 0).toFixed(2)}</span>
+                  ${p.original_price ? `<span class="text-xs text-slate-400 line-through">Q${parseFloat(p.original_price).toFixed(2)}</span>` : ''}
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <a href="${waUrl}" target="_blank" rel="noopener noreferrer"
+                     onclick="if(window.logWhatsAppClick) window.logWhatsAppClick('${p.id}', '${p.store_id}', 'categorias')"
+                     class="no-click bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold py-2 px-2 rounded-xl text-center transition flex items-center justify-center gap-1">
+                    <span>💬</span>
+                    <span>Pedir</span>
+                  </a>
+
+                  <button type="button" data-action="add-cart" data-product-id="${p.id}"
+                     class="bg-slate-900 hover:bg-emerald-600 text-white text-[11px] font-bold py-2 px-2 rounded-xl text-center transition flex items-center justify-center gap-1 shadow-sm">
+                    <span>🛒</span>
+                    <span>Agregar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Mostrar u ocultar paginación
+      if (hasMoreProducts) {
+        paginationContainer.classList.remove('hidden');
+      } else {
+        paginationContainer.classList.add('hidden');
+      }
+    }
+
+    // 7. MANEJADOR DE CLICS EN PRODUCTOS (CARRITO, FAVORITO, VISTA RÁPIDA)
+    function handleProductActionClick(e) {
+      // Botón Favoritos
+      const favBtn = e.target.closest('[data-action="toggle-fav"]');
+      if (favBtn) {
+        e.preventDefault(); e.stopPropagation();
+        const pid = favBtn.dataset.productId;
+        const nowFav = window.Favorites.toggle(pid);
+        document.querySelectorAll(`[data-action="toggle-fav"][data-product-id="${pid}"]`).forEach(btn => {
+          btn.classList.toggle('fav-active', nowFav);
+          btn.style.color = nowFav ? '#ef4444' : '';
+          btn.innerHTML = window.heartSVG(nowFav);
+        });
+        updateFavCount();
+        return;
+      }
+
+      // Botón Agregar al Carrito
+      const cartBtn = e.target.closest('[data-action="add-cart"]');
+      if (cartBtn) {
+        e.preventDefault(); e.stopPropagation();
+        const pid = cartBtn.dataset.productId;
+        const product = loadedProductsMap.get(String(pid));
+        if (product && window.PasajeCart) {
+          window.PasajeCart.addToCart({
+            id: product.id,
+            title: product.title,
+            price: product.price,
+            image_url: product.image_url,
+            storeId: product.store_id,
+            storeName: product.store_name,
+            storeWhatsapp: product.store_whatsapp
+          });
+        }
+        return;
+      }
+
+      // Ignorar clics en enlaces directos (WhatsApp o Tienda)
+      const noClick = e.target.closest('.no-click, a');
+      if (noClick) {
+        return;
+      }
+
+      // Abrir Vista Rápida al hacer clic en la tarjeta del producto
+      const card = e.target.closest('.product-card');
+      if (card) {
+        const product = loadedProductsMap.get(String(card.dataset.productId));
+        if (product) openProductModal(product);
+      }
+    }
+
+    // 8. LOGICA DEL MODAL DE VISTA RÁPIDA
+    function attachModalEvents() {
+      productModal?.addEventListener('click', (e) => {
+        const prevProdBtn = e.target.closest('#modalPrevProductBtn');
+        if (prevProdBtn) {
+          navigateModalProduct(-1);
+          return;
+        }
+
+        const nextProdBtn = e.target.closest('#modalNextProductBtn');
+        if (nextProdBtn) {
+          navigateModalProduct(1);
+          return;
+        }
+
+        const p = activeModalProducts[activeProductIndex];
+        if (!p) return;
+
+        const imgs = Array.isArray(p.images) && p.images.length > 0 ? p.images : [window.PLACEHOLDER_IMG];
+
+        const thumbBtn = e.target.closest('[data-gallery-thumb]');
+        if (thumbBtn) {
+          activeGalleryIndex = parseInt(thumbBtn.dataset.galleryIndex || '0', 10);
+          updateModalGalleryView(imgs);
+          return;
+        }
+
+        const prevImgBtn = e.target.closest('[data-gallery-nav="prev"]');
+        if (prevImgBtn) {
+          activeGalleryIndex = (activeGalleryIndex - 1 + imgs.length) % imgs.length;
+          updateModalGalleryView(imgs);
+          return;
+        }
+
+        const nextImgBtn = e.target.closest('[data-gallery-nav="next"]');
+        if (nextImgBtn) {
+          activeGalleryIndex = (activeGalleryIndex + 1) % imgs.length;
+          updateModalGalleryView(imgs);
+          return;
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        const isModalOpen = productModal && !productModal.classList.contains('hidden');
+
+        if (e.key === 'Escape') {
+          if (isModalOpen) {
+            productModal.classList.add('hidden');
+            document.body.style.overflow = '';
+          }
+          if (window.PasajeCart && typeof window.PasajeCart.closeDrawer === 'function') {
+            window.PasajeCart.closeDrawer();
+          }
+          return;
+        }
+
+        if (!isModalOpen) return;
+
+        const p = activeModalProducts[activeProductIndex];
+        const imgs = (p && Array.isArray(p.images) && p.images.length > 0) ? p.images : [window.PLACEHOLDER_IMG];
+
+        if (e.key === 'ArrowUp' || (e.altKey && e.key === 'ArrowLeft')) {
+          e.preventDefault();
+          navigateModalProduct(-1);
+          return;
+        }
+
+        if (e.key === 'ArrowDown' || (e.altKey && e.key === 'ArrowRight')) {
+          e.preventDefault();
+          navigateModalProduct(1);
+          return;
+        }
+
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          if (imgs.length > 1) {
+            activeGalleryIndex = (activeGalleryIndex - 1 + imgs.length) % imgs.length;
+            updateModalGalleryView(imgs);
+          } else {
+            navigateModalProduct(-1);
+          }
+          return;
+        }
+
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          if (imgs.length > 1) {
+            activeGalleryIndex = (activeGalleryIndex + 1) % imgs.length;
+            updateModalGalleryView(imgs);
+          } else {
+            navigateModalProduct(1);
+          }
+          return;
+        }
+      });
+    }
+
+    function updateModalGalleryView(imgs) {
+      const url = imgs[activeGalleryIndex];
+      const mainImg = productModalContent.querySelector('#mainGalleryViewer');
+      const idxBadge = productModalContent.querySelector('#galleryCurrentIdx');
+
+      if (mainImg && url) {
+        mainImg.src = url;
+        if (idxBadge) idxBadge.textContent = activeGalleryIndex + 1;
+
+        productModalContent.querySelectorAll('.gallery-thumb').forEach((b, idx) => {
+          if (idx === activeGalleryIndex) {
+            b.classList.remove('border-transparent', 'opacity-70', 'hover:opacity-100');
+            b.classList.add('border-emerald-500', 'scale-95', 'shadow-sm');
+          } else {
+            b.classList.remove('border-emerald-500', 'scale-95', 'shadow-sm');
+            b.classList.add('border-transparent', 'opacity-70', 'hover:opacity-100');
+          }
+        });
+      }
+    }
+
+    function navigateModalProduct(dir) {
+      if (!activeModalProducts || activeModalProducts.length === 0) return;
+      const nextIdx = activeProductIndex + dir;
+      if (nextIdx >= 0 && nextIdx < activeModalProducts.length) {
+        openProductModal(activeModalProducts[nextIdx], activeModalProducts, nextIdx);
+      }
+    }
+
+    async function openProductModal(p, list = null, index = -1) {
+      if (list && Array.isArray(list) && list.length > 0) {
+        activeModalProducts = list;
+        activeProductIndex = index >= 0 ? index : list.findIndex(x => String(x.id) === String(p.id));
+      } else {
+        activeModalProducts = Array.from(loadedProductsMap.values());
+        activeProductIndex = activeModalProducts.findIndex(x => String(x.id) === String(p.id));
+      }
+
+      if (activeProductIndex === -1) {
+        activeModalProducts.push(p);
+        activeProductIndex = activeModalProducts.length - 1;
+      }
+
+      activeGalleryIndex = 0;
+
+      const hasPrevProduct = activeProductIndex > 0;
+      const hasNextProduct = activeProductIndex < activeModalProducts.length - 1;
+
+      if (modalProductNavWrapper) {
+        modalProductNavWrapper.innerHTML = `
+          ${hasPrevProduct ? `
+            <button type="button" id="modalPrevProductBtn"
+              class="absolute -left-3 sm:-left-12 top-1/2 -translate-y-1/2 z-50 bg-white hover:bg-slate-100 text-slate-900 w-11 h-11 rounded-full shadow-2xl border border-slate-200 flex items-center justify-center font-black text-2xl transition transform hover:scale-110 active:scale-95"
+              title="Producto Anterior (Alt + ← / ↑)">‹</button>` : ''}
+
+          ${hasNextProduct ? `
+            <button type="button" id="modalNextProductBtn"
+              class="absolute -right-3 sm:-right-12 top-1/2 -translate-y-1/2 z-50 bg-white hover:bg-slate-100 text-slate-900 w-11 h-11 rounded-full shadow-2xl border border-slate-200 flex items-center justify-center font-black text-2xl transition transform hover:scale-110 active:scale-95"
+              title="Producto Siguiente (Alt + → / ↓)">›</button>` : ''}
+        `;
+      }
+
+      const galleryHTML = window.ProductCardUI ? window.ProductCardUI.renderGalleryHTML(p.images, p.title, 0) : '';
+      const variantsHTML = window.ProductCardUI ? window.ProductCardUI.renderVariantsHTML(p.variants) : '';
+      const waUrl = window.ProductCardUI ? window.ProductCardUI.buildWAUrl(p, null, p.price) : `https://wa.me/${p.store_whatsapp}?text=${encodeURIComponent('Hola, me interesa: ' + p.title)}`;
+
+      productModalContent.innerHTML = `
+        <div class="relative">
+          <button id="closeProductModalBtn" class="absolute top-3 right-3 z-20 bg-white/90 hover:bg-white text-slate-800 w-8 h-8 rounded-full shadow flex items-center justify-center font-bold text-xs transition">✕</button>
+          <div class="p-4 sm:p-5 pb-0">${galleryHTML}</div>
+        </div>
+        <div class="p-5">
+          <span class="text-[10px] uppercase font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+            ${p.category_icon || '📦'} ${window.ProductCardUI ? window.ProductCardUI.escapeHtml(p.category_name || 'General') : (p.category_name || 'General')}
+          </span>
+          <h2 class="text-lg font-extrabold text-slate-900 mt-1">${window.ProductCardUI ? window.ProductCardUI.escapeHtml(p.title) : p.title}</h2>
+          <p class="text-2xl font-black text-emerald-600 mt-2">Q ${parseFloat(p.price).toFixed(2)}</p>
+          ${p.description ? `<p class="text-xs text-slate-600 mt-2 leading-relaxed">${window.ProductCardUI ? window.ProductCardUI.escapeHtml(p.description) : p.description}</p>` : ''}
+          ${variantsHTML}
+          <div class="mt-5 space-y-2">
+            <button type="button" id="modalAddToCartBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition">🛒 Añadir al carrito</button>
+            <a href="${waUrl}" target="_blank" rel="noopener noreferrer"
+               class="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3 rounded-xl text-xs transition shadow flex items-center justify-center gap-2">Pedir por WhatsApp</a>
+          </div>
+        </div>`;
+
+      productModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      document.getElementById('closeProductModalBtn').onclick = () => { productModal.classList.add('hidden'); document.body.style.overflow = ''; };
+      document.getElementById('modalAddToCartBtn').onclick = () => {
+        if (window.PasajeCart) {
+          window.PasajeCart.addToCart({
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            image_url: p.image_url,
+            storeId: p.store_id,
+            storeName: p.store_name,
+            storeWhatsapp: p.store_whatsapp
+          });
+          productModal.classList.add('hidden');
+          document.body.style.overflow = '';
+        }
+      };
+    }
   </script>
 </body>
 </html>

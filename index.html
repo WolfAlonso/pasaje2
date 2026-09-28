@@ -64,7 +64,7 @@
   <script src="js/footer.js?v=4"></script>
   <script src="js/categories-render.js?v=5"></script>
   <script src="js/stores-render.js?v=8"></script>
-  <script src="js/public-sidebar.js?v=5"></script>
+  <script src="js/public-sidebar.js?v=8"></script>
   <script src="js/liquid-glass.js?v=4"></script>
 
   <script src="js/services/products-service.js?v=5"></script>
@@ -84,13 +84,15 @@
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col text-slate-800">
 
+  <!-- CONTENEDOR DEL SIDEBAR PÚBLICO -->
   <div id="publicSidebar"></div>
 
   <header class="glass-header text-white shadow-lg sticky top-0 z-40 border-b border-white/10 theme-header">
     <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center gap-3">
       <div class="flex items-center gap-3 min-w-0">
+        <!-- BOTÓN MÓVIL (Oculto automáticamente en escritorio gracias a CSS) -->
         <button id="sidebarToggleBtn" type="button"
-          class="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition flex items-center justify-center border border-white/15 text-white"
+          class="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition flex items-center justify-center border border-white/15 text-white lg:hidden"
           title="Menú" aria-label="Abrir menú">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="3" y1="6"  x2="21" y2="6"></line>
@@ -106,6 +108,18 @@
       </div>
 
       <div class="flex items-center gap-2">
+
+<!-- Añadir en la barra superior de index.html dentro de div.flex.items-center.gap-2 -->
+<a href="inmuebles.html" class="bg-indigo-600/90 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-2 rounded-xl border border-indigo-300/30 flex items-center gap-1.5 transition shadow-sm" title="Pasaje Inmuebles">
+  <span>🏠</span>
+  <span class="hidden sm:inline">Inmuebles</span>
+</a>
+
+        <a href="ofertas.html" class="bg-rose-500/90 hover:bg-rose-600 text-white font-bold text-xs px-3 py-2 rounded-xl border border-rose-300/30 flex items-center gap-1.5 transition shadow-sm" title="Ofertas Relámpago">
+          <span>🔥</span>
+          <span class="hidden sm:inline">Ofertas</span>
+        </a>
+
         <a href="categorias.html" class="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-2 rounded-xl border border-white/15 flex items-center gap-1.5 transition shadow-sm" title="Categorías">
           <span>🏷️</span>
           <span class="hidden sm:inline">Categorías</span>
@@ -134,9 +148,7 @@
 
     <!-- CARRUSEL HERO DE BANNERS PUBLICITARIOS -->
     <section id="heroBannerCarousel" class="mb-8 hidden glass-container rounded-3xl p-2 sm:p-3 relative overflow-hidden group shadow-xl">
-      <div id="bannerSlidesTrack" class="relative w-full aspect-[21/9] sm:aspect-[24/8] md:aspect-[3/1] rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
-        <!-- Slides inyectados dinámicamente -->
-      </div>
+      <div id="bannerSlidesTrack" class="relative w-full aspect-[21/9] sm:aspect-[24/8] md:aspect-[3/1] rounded-2xl overflow-hidden bg-slate-900 shadow-inner"></div>
 
       <button id="bannerPrevBtn" type="button" aria-label="Anterior"
         class="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/80 hover:bg-white text-slate-900 w-10 h-10 rounded-full shadow-lg backdrop-blur flex items-center justify-center font-extrabold text-xl opacity-0 group-hover:opacity-100 transition duration-300 hover:scale-110 active:scale-95">
@@ -150,26 +162,39 @@
       <div id="bannerDots" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 backdrop-blur border border-white/20"></div>
     </section>
 
-    <!-- SECCIÓN DE OFERTAS RELÁMPAGO -->
+    <!-- SECCIÓN DE OFERTAS RELÁMPAGO (VISTA PREVIA: 4 PRODUCTOS ALEATORIOS) -->
     <section id="flashSalesSection" class="mb-8 hidden bg-gradient-to-r from-rose-600 via-red-500 to-amber-500 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
-      <div class="absolute -right-10 -bottom-10 text-white/10 text-9xl font-black pointer-events-none">⚡</div>
+      <div class="absolute -right-10 -bottom-10 text-white/10 text-9xl font-black pointer-events-none select-none">⚡</div>
       
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 relative z-10">
         <div class="flex items-center gap-2">
           <span class="text-2xl animate-bounce">🔥</span>
           <div>
             <h2 class="text-lg sm:text-xl font-black tracking-tight">Ofertas Relámpago</h2>
-            <p class="text-xs text-white/90 font-medium">¡Descuentos por tiempo limitado en comercios de Xela!</p>
+            <p class="text-xs text-white/90 font-medium">¡Últimos descuentos en comercios de Xela!</p>
           </div>
         </div>
         
-        <div id="flashTimerGlobal" class="bg-black/30 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center gap-2 border border-white/20 text-xs font-black">
-          <span>⚡ Termina en:</span>
-          <span id="globalCountdown" class="font-mono text-amber-300">00:00:00</span>
+        <div class="flex items-center gap-2">
+          <div id="flashTimerGlobal" class="bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-xl flex items-center gap-1.5 border border-white/20 text-xs font-black">
+            <span>⚡ Termina:</span>
+            <span id="globalCountdown" class="font-mono text-amber-300">00:00:00</span>
+          </div>
         </div>
       </div>
 
       <div id="flashSalesList" class="flex gap-4 overflow-x-auto pb-2 no-scrollbar snap-x snap-mandatory relative z-10"></div>
+
+      <div class="mt-4 pt-3 border-t border-white/20 flex flex-col sm:flex-row items-center justify-between gap-3 relative z-10">
+        <div class="flex items-center gap-2 text-xs font-semibold text-rose-100 text-center sm:text-left">
+          <span>🏷️</span>
+          <span>¿Buscas más descuentos? Explora el catálogo completo con filtros por sector.</span>
+        </div>
+        <a href="ofertas.html" class="w-full sm:w-auto bg-white hover:bg-rose-50 text-rose-600 font-extrabold text-xs px-5 py-2.5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 whitespace-nowrap">
+          <span>🔥 Ver todas las ofertas</span>
+          <span>→</span>
+        </a>
+      </div>
     </section>
 
     <!-- PRODUCTOS DESTACADOS -->
@@ -238,15 +263,24 @@
       </div>
     </section>
 
+    <!-- SECCIÓN DE TIENDAS DESTACADAS (10 ALEATORIAS + VER MÁS) -->
     <section id="storesSection" class="mb-8 relative z-10">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-base sm:text-lg font-extrabold text-slate-800 flex items-center gap-2">
           <span class="text-emerald-500">🏪</span> Tiendas Destacadas
         </h2>
+        <a href="tiendas.html" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 transition">
+          <span>Ver todas las tiendas</span>
+          <span>→</span>
+        </a>
       </div>
-      <div id="storesCarousel" class="flex gap-4 overflow-x-auto pb-3 no-scrollbar snap-x snap-mandatory"></div>
+      
+      <div id="storesCarousel" class="flex gap-4 overflow-x-auto pb-3 no-scrollbar snap-x snap-mandatory">
+        <div class="p-4 text-xs text-slate-400 font-medium">Cargando comercios locales...</div>
+      </div>
     </section>
 
+    <!-- CATEGORÍAS Y GRILLA PRINCIPAL DE PRODUCTOS -->
     <div id="categoryFilters" class="flex gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar snap-x relative z-10"></div>
 
     <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 relative z-10">
@@ -305,6 +339,15 @@
     const productModalContent = document.getElementById('productModalContent');
     const modalProductNavWrapper = document.getElementById('modalProductNavWrapper');
 
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
     function debounce(fn, delay = 300) {
       let timer;
       return function (...args) {
@@ -313,8 +356,13 @@
       };
     }
 
+    // DISPARADOR DEL SIDEBAR PÚBLICO (MÓVIL)
     document.getElementById('sidebarToggleBtn')?.addEventListener('click', () => {
-      if (typeof window.togglePublicSidebar === 'function') window.togglePublicSidebar();
+      if (typeof window.togglePublicSidebar === 'function') {
+        window.togglePublicSidebar();
+      } else if (window.PasajePublicSidebar) {
+        window.PasajePublicSidebar.toggle();
+      }
     });
 
     window.setCatalogCategory = function (slug) {
@@ -559,17 +607,19 @@
 
     async function loadFlashSales() {
       try {
-        const sales = await ProductsService.getFlashSales(10);
+        const salesPool = await ProductsService.getFlashSales(20);
 
-        if (!sales || sales.length === 0) {
+        if (!salesPool || salesPool.length === 0) {
           flashSalesSection.classList.add('hidden');
           return;
         }
 
-        sales.forEach(p => loadedProductsMap.set(String(p.id), p));
+        const randomSales = shuffleArray(salesPool).slice(0, 4);
+
+        randomSales.forEach(p => loadedProductsMap.set(String(p.id), p));
         flashSalesSection.classList.remove('hidden');
 
-        flashSalesList.innerHTML = sales.map(p => {
+        let cardsHtml = randomSales.map(p => {
           const storeName = p.store_name || 'Tienda';
           const origPrice = p.original_price && parseFloat(p.original_price) > p.price ? parseFloat(p.original_price) : parseFloat(p.price) * 1.25;
           const salePrice = parseFloat(p.price);
@@ -578,7 +628,7 @@
           const verifiedBadge = p.store_is_verified ? ' ✓' : '';
 
           return `
-            <div class="product-card bg-white rounded-2xl p-3 shadow-lg flex-shrink-0 w-56 text-slate-950 flex flex-col justify-between snap-start" data-product-id="${p.id}">
+            <div class="product-card bg-white rounded-2xl p-3 shadow-lg flex-shrink-0 w-52 sm:w-56 text-slate-950 flex flex-col justify-between snap-start hover:shadow-xl transition-all duration-200" data-product-id="${p.id}">
               <div>
                 <div class="relative rounded-xl overflow-hidden bg-slate-100 aspect-square mb-2.5">
                   <img src="${p.image_url || window.PLACEHOLDER_IMG}" alt="${ProductCardUI.escapeHtml(p.title)}" class="w-full h-full object-cover">
@@ -594,15 +644,28 @@
                   <span class="text-sm font-black text-rose-600">Q ${salePrice.toFixed(2)}</span>
                 </div>
                 <button type="button" data-action="add-cart" data-product-id="${p.id}"
-                  class="mt-2 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-1.5 rounded-xl text-[11px] transition">
+                  class="mt-2 w-full bg-slate-900 hover:bg-rose-600 text-white font-bold py-1.5 rounded-xl text-[11px] transition">
                   ⚡ Aprovechar Oferta
                 </button>
               </div>
             </div>`;
         }).join('');
 
-        if (sales[0]?.sale_expires_at) {
-          startGlobalCountdown(sales[0].sale_expires_at);
+        const extraCtaCard = `
+          <a href="ofertas.html" class="bg-black/20 hover:bg-black/30 backdrop-blur-md border border-white/30 rounded-2xl p-4 shadow-lg flex-shrink-0 w-44 sm:w-48 text-center flex flex-col items-center justify-center snap-start transition-all group text-white">
+            <span class="text-3xl mb-2 group-hover:scale-125 transition-transform duration-300">🔥</span>
+            <h4 class="text-xs font-black uppercase tracking-wider">Ver más promociones</h4>
+            <p class="text-[10px] text-rose-100 mt-1 mb-3">Ir a la sección de Ofertas</p>
+            <span class="bg-white text-rose-600 font-extrabold text-[11px] px-3 py-1.5 rounded-xl shadow-md group-hover:bg-rose-50 transition">
+              Explorar →
+            </span>
+          </a>
+        `;
+
+        flashSalesList.innerHTML = cardsHtml + extraCtaCard;
+
+        if (randomSales[0]?.sale_expires_at) {
+          startGlobalCountdown(randomSales[0].sale_expires_at);
         }
 
       } catch (err) {
@@ -631,6 +694,67 @@
 
         timerEl.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
       }, 1000);
+    }
+
+    async function loadFeaturedStores() {
+      const storesCarousel = document.getElementById('storesCarousel');
+      const storesSection = document.getElementById('storesSection');
+      if (!storesCarousel) return;
+
+      try {
+        let stores = [];
+        
+        if (typeof window._supabase !== 'undefined') {
+          const { data, error } = await window._supabase
+            .from('stores')
+            .select('id, name, slug, logo_url, address, is_verified, is_active, is_suspended')
+            .eq('is_active', true)
+            .eq('is_suspended', false);
+
+          if (!error && data) stores = data;
+        }
+
+        if (!stores || stores.length === 0) {
+          storesSection?.classList.add('hidden');
+          return;
+        }
+
+        const randomStores = shuffleArray(stores).slice(0, 10);
+        storesSection?.classList.remove('hidden');
+
+        let storesHtml = randomStores.map(s => {
+          const logo = s.logo_url || window.PLACEHOLDER_IMG;
+          const verifiedBadge = s.is_verified ? '<span class="text-blue-500 text-[10px]" title="Verificada">✓</span>' : '';
+
+          return `
+            <a href="tienda.html?slug=${encodeURIComponent(s.slug || '')}"
+               class="glass-container hover:border-emerald-400 p-3.5 rounded-2xl flex items-center gap-3 flex-shrink-0 w-60 snap-start shadow-sm hover:shadow-md transition group bg-white">
+              <img src="${logo}" alt="${ProductCardUI.escapeHtml(s.name)}" class="w-12 h-12 rounded-xl object-cover bg-slate-100 flex-shrink-0 border border-slate-100">
+              <div class="min-w-0 flex-1">
+                <h4 class="text-xs font-extrabold text-slate-900 group-hover:text-emerald-600 truncate flex items-center gap-1">
+                  <span class="truncate">${ProductCardUI.escapeHtml(s.name)}</span>
+                  ${verifiedBadge}
+                </h4>
+                <p class="text-[10px] text-slate-500 truncate mt-0.5">${ProductCardUI.escapeHtml(s.address || 'Quetzaltenango')}</p>
+              </div>
+            </a>
+          `;
+        }).join('');
+
+        const extraStoreCard = `
+          <a href="tiendas.html"
+             class="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-2xl p-3.5 flex flex-col items-center justify-center text-center flex-shrink-0 w-44 snap-start shadow-sm transition group">
+            <span class="text-2xl mb-1 group-hover:scale-110 transition-transform">🏪</span>
+            <span class="text-xs font-black text-emerald-800">Ver todas las tiendas</span>
+            <span class="text-[10px] text-emerald-600 font-bold mt-0.5">Explorar directorio →</span>
+          </a>
+        `;
+
+        storesCarousel.innerHTML = storesHtml + extraStoreCard;
+
+      } catch (err) {
+        console.warn('[Index] Error al cargar tiendas destacadas:', err);
+      }
     }
 
     async function loadFeaturedProducts() {
@@ -1003,6 +1127,7 @@
     try { updateFavCount(); } catch (e) {}
     try { loadHeroBanners(); } catch (e) {}
     try { loadFlashSales(); } catch (e) {}
+    try { loadFeaturedStores(); } catch (e) {}
     try { loadFeaturedProducts(); } catch (e) {}
     try { loadProductsPage(true); } catch (e) {}
   </script>

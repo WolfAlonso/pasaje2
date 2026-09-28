@@ -45,7 +45,7 @@
   }
 
   function formatExpiration(expIso) {
-    if (!expIso) return '';
+    if (!expIso) return '⚡ Oferta activa';
     try {
       const exp = new Date(expIso);
       const diffMs = exp - new Date();
@@ -85,13 +85,13 @@
     }
 
     const discountPct = displayOrigPrice && displayOrigPrice > displayPrice ? Math.round(((displayOrigPrice - displayPrice) / displayOrigPrice) * 100) : 0;
-    const expText = isOnSale && p.sale_expires_at ? formatExpiration(p.sale_expires_at) : '';
+    const expText = isOnSale ? formatExpiration(p.sale_expires_at) : '';
 
     const saleBadge = (isOnSale && discountPct > 0)
       ? `<span class="absolute top-2 left-2 z-10 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow flex items-center gap-1">⚡ -${discountPct}% OFF</span>` 
       : '';
 
-    const expDisplay = expText ? `<span class="block text-[10px] font-bold text-rose-600 mt-0.5 animate-pulse">⏱️ ${expText}</span>` : '';
+    const expDisplay = isOnSale ? `<span class="block text-[10px] font-bold text-rose-600 mt-0.5 animate-pulse" data-countdown-target="${p.sale_expires_at || ''}">⏱️ ${expText}</span>` : '';
 
     const priceDisplay = isOnSale && displayOrigPrice
       ? `<div>
@@ -180,7 +180,7 @@
           ${isOutOfStock ? `<div class="absolute inset-0 bg-black/40 flex items-center justify-center"><span class="bg-white text-rose-700 font-extrabold text-xs px-3 py-1 rounded-full shadow">⛔ AGOTADO</span></div>` : ''}
         </div>
         <div class="p-3.5 flex-1 flex flex-col">
-          <span class="text-[10px] uppercase font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded self-start">
+          <span class="text-[10px] uppercase font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded self-start">
             ${p.category_icon || '📦'} ${escapeHtml(p.category_name || 'General')}
           </span>
 
@@ -229,7 +229,7 @@
     if (imgs.length > 1) {
       const thumbs = imgs.map((url, idx) => `
         <button type="button" data-gallery-thumb="${url}" data-gallery-index="${idx}"
-          class="gallery-thumb snap-start flex-shrink-0 w-14 h-14 rounded-xl border-2 overflow-hidden transition ${idx === safeIdx ? 'border-emerald-500 scale-95 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}">
+          class="gallery-thumb snap-start flex-shrink-0 w-14 h-14 rounded-xl border-2 overflow-hidden transition ${idx === safeIdx ? 'border-rose-500 scale-95 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'}">
           <img src="${url}" alt="miniatura" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='${placeholder}'">
         </button>
       `).join('');
@@ -272,8 +272,8 @@
         const btnStyle = isOut
           ? 'bg-slate-100 text-slate-400 border-slate-200 line-through cursor-not-allowed'
           : (isSelected
-              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm font-bold'
-              : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-500 hover:bg-emerald-50');
+              ? 'bg-rose-600 text-white border-rose-600 shadow-sm font-bold'
+              : 'bg-white text-slate-700 border-slate-200 hover:border-rose-500 hover:bg-rose-50');
 
         return `
           <button type="button"

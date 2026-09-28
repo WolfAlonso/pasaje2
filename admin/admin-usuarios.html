@@ -39,7 +39,7 @@
     <section id="content" class="hidden space-y-5">
 
       <!-- TARJETAS DE ESTADÍSTICAS -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div class="glass-container rounded-2xl p-4 shadow-sm border border-slate-200/80">
           <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Registrados</p>
           <p id="statTotal" class="text-2xl font-black text-slate-800 mt-1">—</p>
@@ -52,13 +52,17 @@
           <p class="text-[11px] font-bold text-blue-700 uppercase tracking-wider">🏪 Con Tienda Activa</p>
           <p id="statWithStore" class="text-2xl font-black text-blue-700 mt-1">—</p>
         </div>
-        <div class="glass-container rounded-2xl p-4 shadow-sm border border-rose-200/80 bg-rose-50/30">
-          <p class="text-[11px] font-bold text-rose-700 uppercase tracking-wider">🚫 Suspendidos / Pausados</p>
-          <p id="statSuspended" class="text-2xl font-black text-rose-600 mt-1">—</p>
+        <div class="glass-container rounded-2xl p-4 shadow-sm border border-emerald-200/80 bg-emerald-50/30">
+          <p class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">🛵 Repartidores</p>
+          <p id="statDelivery" class="text-2xl font-black text-emerald-700 mt-1">—</p>
+        </div>
+        <div class="glass-container rounded-2xl p-4 shadow-sm border border-indigo-200/80 bg-indigo-50/30">
+          <p class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">🏠 Agentes Inmuebles</p>
+          <p id="statRealEstate" class="text-2xl font-black text-indigo-700 mt-1">—</p>
         </div>
       </div>
 
-      <!-- BARRA DE BÚSQUEDA Y ACCIÓN DE CREACIÓN -->
+      <!-- BARRA DE BÚSQUEDA Y FILTROS -->
       <div class="glass-container rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-1">
           <div class="relative flex-1">
@@ -75,6 +79,8 @@
             <option value="all">Todos los usuarios</option>
             <option value="admins">🛡️ Solo Administradores</option>
             <option value="vendedores">🏪 Solo Vendedores (Con Tienda)</option>
+            <option value="delivery">🛵 Solo Repartidores</option>
+            <option value="real_estate">🏠 Solo Agentes / Inmuebles</option>
             <option value="no-store">👤 Sin Tienda Asignada</option>
             <option value="suspended">🚫 Cuentas Suspendidas</option>
           </select>
@@ -83,18 +89,18 @@
         <button id="btnCreateUser" type="button"
           class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-2">
           <span>➕</span>
-          <span>Crear Nuevo Usuario / Vendedor</span>
+          <span>Crear Nuevo Usuario / Agente</span>
         </button>
       </div>
 
-      <!-- LISTADO TABULAR DE USUARIOS -->
+      <!-- LISTADO TABULAR -->
       <div id="usersList" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden divide-y divide-slate-100">
         <p class="p-8 text-center text-sm text-slate-500">Cargando usuarios...</p>
       </div>
     </section>
   </main>
 
-  <!-- MODAL DE CREACIÓN / EDICIÓN DE USUARIO Y TIENDA -->
+  <!-- MODAL DE CREACIÓN / EDICIÓN -->
   <div id="userModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto border border-slate-100">
       <div id="userModalContent" class="p-6"></div>
@@ -105,6 +111,7 @@
     let currentAdmin = null;
     let allUsers = [];
     let allStores = [];
+    let userRolesMap = {};
     let storeByUser = {};
     const modal = document.getElementById('userModal');
 
@@ -125,7 +132,7 @@
     })();
 
     async function reloadData() {
-      await Promise.all([loadStores(), loadUsers()]);
+      await Promise.all([loadStores(), loadUserRoles(), loadUsers()]);
     }
 
     async function loadStores() {
@@ -134,6 +141,14 @@
       storeByUser = {};
       allStores.forEach(s => {
         if (s.user_id) storeByUser[s.user_id] = s;
+      });
+    }
+
+    async function loadUserRoles() {
+      const { data } = await _supabase.from('user_roles').select('user_id, is_admin, is_merchant, is_delivery, is_real_estate');
+      userRolesMap = {};
+      (data || []).forEach(r => {
+        userRolesMap[r.user_id] = r;
       });
     }
 
@@ -160,12 +175,14 @@
       const total = allUsers.length;
       const admins = allUsers.filter(u => u.is_admin).length;
       const withStore = allUsers.filter(u => storeByUser[u.user_id]).length;
-      const suspended = allUsers.filter(u => storeByUser[u.user_id]?.is_suspended).length;
+      const deliveryCount = Object.values(userRolesMap).filter(r => r.is_delivery).length;
+      const realEstateCount = Object.values(userRolesMap).filter(r => r.is_real_estate).length;
 
-      document.getElementById('statTotal').textContent     = total;
-      document.getElementById('statAdmins').textContent    = admins;
-      document.getElementById('statWithStore').textContent = withStore;
-      document.getElementById('statSuspended').textContent = suspended;
+      document.getElementById('statTotal').textContent      = total;
+      document.getElementById('statAdmins').textContent     = admins;
+      document.getElementById('statWithStore').textContent  = withStore;
+      document.getElementById('statDelivery').textContent   = deliveryCount;
+      document.getElementById('statRealEstate').textContent = realEstateCount;
     }
 
     function renderUsers() {
@@ -176,8 +193,12 @@
 
       const list = allUsers.filter(u => {
         const store = storeByUser[u.user_id];
+        const roles = userRolesMap[u.user_id] || {};
+
         if (filter === 'admins' && !u.is_admin) return false;
         if (filter === 'vendedores' && !store) return false;
+        if (filter === 'delivery' && !roles.is_delivery) return false;
+        if (filter === 'real_estate' && !roles.is_real_estate) return false;
         if (filter === 'no-store' && store) return false;
         if (filter === 'suspended' && (!store || !store.is_suspended)) return false;
 
@@ -196,6 +217,7 @@
       container.innerHTML = list.map(u => {
         const isSelf = u.user_id === currentAdmin?.id;
         const store = storeByUser[u.user_id];
+        const roles = userRolesMap[u.user_id] || {};
         const initial = (u.display_name || u.email || 'U').charAt(0).toUpperCase();
         const regDate = u.created_at ? adminFormatDate(u.created_at) : '—';
 
@@ -212,12 +234,14 @@
                   ${u.is_admin
                     ? '<span class="text-[10px] bg-purple-100 text-purple-800 font-black px-2 py-0.5 rounded-full border border-purple-200">🛡️ Admin</span>'
                     : '<span class="text-[10px] bg-slate-100 text-slate-700 font-extrabold px-2 py-0.5 rounded-full border border-slate-200">👤 Vendedor</span>'}
+                  ${roles.is_delivery ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 font-black px-2 py-0.5 rounded-full border border-emerald-200">🛵 Repartidor</span>' : ''}
+                  ${roles.is_real_estate ? '<span class="text-[10px] bg-indigo-100 text-indigo-800 font-black px-2 py-0.5 rounded-full border border-indigo-200">🏠 Inmuebles</span>' : ''}
                   ${isSelf ? '<span class="text-[10px] bg-blue-100 text-blue-800 font-black px-2 py-0.5 rounded-full">Tu cuenta</span>' : ''}
                   ${store
                     ? `<span class="text-[10px] ${store.is_suspended ? 'bg-rose-100 text-rose-800 border-rose-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300'} font-extrabold px-2 py-0.5 rounded-full border">
                          🏪 ${e(store.name)}${store.is_suspended ? ' (SUSPENDIDA)' : ' (Activa)'}
                        </span>`
-                    : '<span class="text-[10px] bg-amber-50 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">⚠️ Sin Tienda</span>'}
+                    : ''}
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 mt-1.5 text-xs text-slate-600 font-medium">
@@ -244,7 +268,7 @@
 
                 <button data-user-delete="${u.user_id}" ${isSelf ? 'disabled' : ''}
                   class="text-xs font-bold px-3 py-1.5 rounded-xl transition ${isSelf ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600'}"
-                  title="Eliminar usuario completamente de Supabase">
+                  title="Eliminar usuario completamente">
                   🗑️
                 </button>
               </div>
@@ -297,28 +321,22 @@
       const u = allUsers.find(x => x.user_id === userId);
       if (!u) return;
 
-      if (!confirm(`⚠️ ELIMINACIÓN DEFINITIVA:\n¿Estás seguro de que deseas ELIMINAR COMPLETAMENTE a "${u.email}"?\n\nEsta acción eliminará su cuenta de Supabase Auth, desvinculará su tienda y eliminará todos sus perfiles asociados.`)) return;
+      if (!confirm(`⚠️ ELIMINACIÓN DEFINITIVA:\n¿Estás seguro de que deseas ELIMINAR COMPLETAMENTE a "${u.email}"?`)) return;
 
       try {
-        const { error } = await _supabase.rpc('admin_delete_user', {
-          target_user_id: userId
-        });
-
+        const { error } = await _supabase.rpc('admin_delete_user', { target_user_id: userId });
         if (error) throw error;
-
-        alert('Usuario eliminado exitosamente del sistema y de Supabase Auth.');
+        alert('Usuario eliminado exitosamente.');
         await reloadData();
       } catch (err) {
         alert('Error durante la eliminación: ' + (err.message || err));
       }
     }
 
-    // ---------------------------------------------------------
-    // MODAL DINÁMICO DE CREACIÓN Y EDICIÓN
-    // ---------------------------------------------------------
     function openUserModal(userId) {
       const isEditing = !!userId;
       const u = isEditing ? allUsers.find(x => x.user_id === userId) : null;
+      const roles = isEditing ? (userRolesMap[userId] || {}) : {};
       const e = adminEscapeHtml;
       const currentStore = isEditing ? storeByUser[u.user_id] : null;
 
@@ -332,8 +350,8 @@
       document.getElementById('userModalContent').innerHTML = `
         <div class="flex items-start justify-between mb-4 pb-3 border-b border-slate-100">
           <div>
-            <h3 class="text-lg font-black text-slate-900">${isEditing ? 'Editar Usuario / Vendedor' : '➕ Crear Nuevo Usuario / Vendedor'}</h3>
-            <p class="text-xs text-slate-500 font-medium">${isEditing ? `ID: ${e(u.user_id)}` : 'Registra un nuevo usuario y conéctalo a una tienda'}</p>
+            <h3 class="text-lg font-black text-slate-900">${isEditing ? 'Editar Usuario' : '➕ Crear Nuevo Usuario / Agente'}</h3>
+            <p class="text-xs text-slate-500 font-medium">${isEditing ? `ID: ${e(u.user_id)}` : 'Registra un nuevo usuario y asigna sus roles'}</p>
           </div>
           <button id="closeUserModalBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition">✕</button>
         </div>
@@ -342,7 +360,7 @@
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Correo Electrónico *</label>
             <input type="email" id="modalEmail" required ${isEditing ? 'disabled' : ''} value="${isEditing ? e(u.email || '') : ''}"
-              placeholder="vendedor@pasajealtos.com"
+              placeholder="agente@pasajealtos.com"
               class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-amber-500 ${isEditing ? 'bg-slate-50 text-slate-500' : ''}">
           </div>
 
@@ -368,38 +386,54 @@
             </div>
           </div>
 
-          <!-- ASIGNACIÓN DE ROL -->
-          <div class="p-3.5 bg-purple-50/80 border border-purple-200/80 rounded-2xl flex items-center justify-between">
-            <div>
-              <span class="block text-xs font-black text-purple-900 uppercase">🛡️ Rol de Administrador General</span>
-              <span class="text-[11px] text-purple-700">Permite acceso completo a la Consola /admin/</span>
+          <!-- ROLES MULTI-MÓDULO -->
+          <div class="space-y-2">
+            <div class="p-3 bg-purple-50/80 border border-purple-200/80 rounded-2xl flex items-center justify-between">
+              <div>
+                <span class="block text-xs font-black text-purple-900 uppercase">🛡️ Rol de Administrador General</span>
+                <span class="text-[11px] text-purple-700">Acceso completo a la Consola /admin/</span>
+              </div>
+              <input type="checkbox" id="modalIsAdmin" ${isEditing && u.is_admin ? 'checked' : ''} class="w-5 h-5 accent-purple-600 rounded cursor-pointer">
             </div>
-            <input type="checkbox" id="modalIsAdmin" ${isEditing && u.is_admin ? 'checked' : ''} class="w-5 h-5 accent-purple-600 rounded cursor-pointer">
+
+            <div class="p-3 bg-indigo-50/80 border border-indigo-200/80 rounded-2xl flex items-center justify-between">
+              <div>
+                <span class="block text-xs font-black text-indigo-900 uppercase">🏠 Agente/Propietario Inmuebles (is_real_estate)</span>
+                <span class="text-[11px] text-indigo-700">Habilita el panel de gestión Pasaje Inmuebles</span>
+              </div>
+              <input type="checkbox" id="modalIsRealEstate" ${isEditing && roles.is_real_estate ? 'checked' : ''} class="w-5 h-5 accent-indigo-600 rounded cursor-pointer">
+            </div>
+
+            <div class="p-3 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl flex items-center justify-between">
+              <div>
+                <span class="block text-xs font-black text-emerald-900 uppercase">🛵 Repartidor de Delivery (is_delivery)</span>
+                <span class="text-[11px] text-emerald-700">Habilita el panel Pasaje Delivery para carreras</span>
+              </div>
+              <input type="checkbox" id="modalIsDelivery" ${isEditing && roles.is_delivery ? 'checked' : ''} class="w-5 h-5 accent-emerald-600 rounded cursor-pointer">
+            </div>
           </div>
 
           <!-- VINCULACIÓN DE TIENDA -->
           <div class="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-2xl space-y-3">
-            <span class="block text-xs font-black text-blue-900 uppercase">🏪 Asignación / Vinculación de Tienda</span>
+            <span class="block text-xs font-black text-blue-900 uppercase">🏪 Asignación de Tienda Comercial</span>
             
             <div>
-              <label class="block text-[11px] font-bold text-blue-800 uppercase mb-1">Seleccionar Tienda Existente</label>
               <select id="modalStoreSelect" class="w-full border border-blue-200 p-2.5 rounded-xl text-xs font-bold bg-white text-slate-800 outline-none">
                 <option value="">-- Sin tienda vinculada --</option>
-                <option value="__NEW__">➕ Crear Nueva Tienda para este usuario</option>
+                <option value="__NEW__">➕ Crear Nueva Tienda</option>
                 ${storeOptionsHTML}
               </select>
             </div>
 
             <div id="newStoreFields" class="hidden space-y-2 pt-2 border-t border-blue-200/60">
-              <label class="block text-[11px] font-bold text-blue-800 uppercase">Nombre de la Nueva Tienda *</label>
-              <input type="text" id="modalNewStoreName" placeholder="Ej. Panadería Los Altos"
+              <input type="text" id="modalNewStoreName" placeholder="Nombre de la nueva tienda..."
                 class="w-full border border-blue-200 p-2.5 rounded-xl text-xs font-semibold bg-white outline-none">
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Notas Administrativas Internas</label>
-            <textarea id="modalNotes" rows="2" placeholder="Notas solo visibles para administradores..."
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Notas Internas</label>
+            <textarea id="modalNotes" rows="2" placeholder="Notas sobre este usuario..."
               class="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-medium bg-white outline-none focus:ring-2 focus:ring-amber-500">${isEditing ? e(u.notes || '') : ''}</textarea>
           </div>
 
@@ -426,38 +460,31 @@
       const storeSelect = document.getElementById('modalStoreSelect');
       const newStoreFields = document.getElementById('newStoreFields');
       storeSelect.addEventListener('change', () => {
-        if (storeSelect.value === '__NEW__') {
-          newStoreFields.classList.remove('hidden');
-        } else {
-          newStoreFields.classList.add('hidden');
-        }
+        if (storeSelect.value === '__NEW__') newStoreFields.classList.remove('hidden');
+        else newStoreFields.classList.add('hidden');
       });
 
       document.getElementById('userModalForm').onsubmit = async (evt) => {
         evt.preventDefault();
         const submitBtn = document.getElementById('saveUserModalBtn');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Procesando...';
+        submitBtn.disabled = true; submitBtn.textContent = 'Procesando...';
 
         try {
           let targetUserId = userId;
           const displayName = document.getElementById('modalDisplayName').value.trim() || null;
           const phone = document.getElementById('modalPhone').value.trim() || null;
           const isAdmin = document.getElementById('modalIsAdmin').checked;
+          const isRealEstate = document.getElementById('modalIsRealEstate').checked;
+          const isDelivery = document.getElementById('modalIsDelivery').checked;
           const notes = document.getElementById('modalNotes').value.trim() || null;
 
           if (!isEditing) {
             const email = document.getElementById('modalEmail').value.trim();
             const password = document.getElementById('modalPassword').value;
 
-            const tempSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-              auth: { persistSession: false }
-            });
-
+            const tempSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
             const { data: authData, error: authError } = await tempSupabase.auth.signUp({
-              email,
-              password,
-              options: { data: { display_name: displayName, phone: phone } }
+              email, password, options: { data: { display_name: displayName, phone: phone } }
             });
 
             if (authError) throw authError;
@@ -465,65 +492,15 @@
             targetUserId = authData.user.id;
           }
 
-          // Guardar perfil del usuario
-          const { error: profileErr } = await _supabase.from('user_profiles').upsert([{
-            user_id: targetUserId,
-            display_name: displayName,
-            phone: phone,
-            notes: notes,
-            updated_at: new Date().toISOString()
+          // PERFIL
+          await _supabase.from('user_profiles').upsert([{
+            user_id: targetUserId, display_name: displayName, phone: phone, notes: notes, updated_at: new Date().toISOString()
           }], { onConflict: 'user_id' });
-          if (profileErr) throw new Error('Error al guardar perfil: ' + profileErr.message);
 
-          // Guardar rol del usuario
-          const { error: roleErr } = await _supabase.from('user_roles').upsert([{
-            user_id: targetUserId,
-            is_admin: isAdmin
+          // ROLES
+          await _supabase.from('user_roles').upsert([{
+            user_id: targetUserId, is_admin: isAdmin, is_merchant: true, is_delivery: isDelivery, is_real_estate: isRealEstate
           }], { onConflict: 'user_id' });
-          if (roleErr) throw new Error('Error al guardar rol: ' + roleErr.message);
-
-          // Gestión y Vinculación de Tienda
-          const selectedStoreVal = storeSelect.value;
-          
-          // Si el usuario tenía previamente una tienda asignada diferente a la nueva seleccionada, la desvinculamos
-          if (isEditing && currentStore && currentStore.id !== selectedStoreVal) {
-            const { error: unbindOldErr } = await _supabase
-              .from('stores')
-              .update({ user_id: null })
-              .eq('id', currentStore.id);
-            if (unbindOldErr) throw new Error('Error al desvincular tienda anterior: ' + unbindOldErr.message);
-          }
-
-          if (selectedStoreVal === '__NEW__') {
-            const storeName = document.getElementById('modalNewStoreName').value.trim();
-            if (!storeName) throw new Error('Ingresa un nombre para la nueva tienda.');
-            
-            const rawSlug = storeName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-            const storeSlug = rawSlug + '-' + Math.random().toString(36).substring(2, 6);
-
-            const { error: storeInsertErr } = await _supabase.from('stores').insert([{
-              user_id: targetUserId,
-              name: storeName,
-              slug: storeSlug,
-              owner_full_name: displayName || storeName,
-              whatsapp: phone || '',
-              zone: 'Zona 1',
-              has_physical_store: true,
-              is_active: true,
-              is_suspended: false,
-              plan_type: 'free'
-            }]);
-
-            if (storeInsertErr) {
-              throw new Error('Error al crear la tienda: ' + storeInsertErr.message);
-            }
-          } else if (selectedStoreVal) {
-            const { error: storeUpdateErr } = await _supabase
-              .from('stores')
-              .update({ user_id: targetUserId })
-              .eq('id', selectedStoreVal);
-            if (storeUpdateErr) throw new Error('Error al vincular tienda: ' + storeUpdateErr.message);
-          }
 
           closeFn();
           await reloadData();

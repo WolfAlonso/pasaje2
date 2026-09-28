@@ -107,7 +107,7 @@
         <div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center justify-between">
           <div>
             <h2 class="text-base font-black text-slate-900">⚡ Monitor de Entregas Activas</h2>
-            <p class="text-xs text-slate-500">Administra convocatorias, PINs de seguridad, contraofertas de pilotos y chat en tiempo real.</p>
+            <p class="text-xs text-slate-500">Administra convocatorias, contraofertas de pilotos y chat en tiempo real.</p>
           </div>
           <button type="button" onclick="loadStoreOrders()" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl transition">
             🔄 Actualizar
@@ -242,65 +242,6 @@
     </div>
   </div>
 
-  <!-- MODAL QUICK VIEW PILOTO -->
-  <div id="driverQuickViewModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-slate-100 relative">
-      <button id="closeDriverQuickViewBtn" type="button" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center text-xs">✕</button>
-      <div class="text-center space-y-2">
-        <div id="quickDriverAvatar" class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-2xl font-black mx-auto border-2 border-emerald-400 shadow-sm">🛵</div>
-        <h3 id="quickDriverName" class="font-black text-slate-900 text-base">Nombre Piloto</h3>
-        <span id="quickDriverRatingStars" class="inline-block bg-amber-50 text-amber-800 text-xs font-black px-3 py-1 rounded-full border border-amber-200">⭐ 5.0 (0 entregas)</span>
-      </div>
-      <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
-        <div class="flex justify-between border-b pb-1">
-          <span class="text-slate-500 font-medium">📞 Teléfono:</span>
-          <span id="quickDriverPhone" class="font-bold text-slate-800">—</span>
-        </div>
-        <div class="flex justify-between border-b pb-1">
-          <span class="text-slate-500 font-medium">🛵 Vehículo:</span>
-          <span id="quickDriverVehicle" class="font-bold text-slate-800">—</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500 font-medium">🔢 Placa:</span>
-          <span id="quickDriverPlate" class="font-bold text-slate-800">—</span>
-        </div>
-      </div>
-      <button type="button" onclick="document.getElementById('driverQuickViewModal').classList.add('hidden')" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm">Cerrar</button>
-    </div>
-  </div>
-
-  <!-- MODAL CALIFICAR PILOTO -->
-  <div id="rateDriverModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-slate-100 relative">
-      <button id="closeRateDriverBtn" type="button" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-700 w-7 h-7 rounded-full font-bold text-xs">✕</button>
-      <div class="flex items-center gap-2 border-b pb-3">
-        <span class="text-xl">⭐</span>
-        <h3 class="font-black text-slate-900 text-sm">Calificar Servicio del Piloto</h3>
-      </div>
-      <input type="hidden" id="rateDriverReqId" />
-      <p id="rateDriverName" class="text-xs font-bold text-slate-700 text-center">Piloto: —</p>
-      
-      <!-- Estrellas Interactivas -->
-      <div class="flex justify-center gap-2 text-3xl cursor-pointer py-1" id="driverStarRatingContainer">
-        <span data-star="1" class="driver-star transition-transform hover:scale-125">⭐</span>
-        <span data-star="2" class="driver-star transition-transform hover:scale-125">⭐</span>
-        <span data-star="3" class="driver-star transition-transform hover:scale-125">⭐</span>
-        <span data-star="4" class="driver-star transition-transform hover:scale-125">⭐</span>
-        <span data-star="5" class="driver-star transition-transform hover:scale-125">⭐</span>
-      </div>
-      <input type="hidden" id="selectedDriverScore" value="5" />
-      
-      <div>
-        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Comentario u Observaciones (Opcional)</label>
-        <textarea id="rateDriverComment" rows="2" placeholder="Ej. Excelente puntualidad y trato amable..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
-      </div>
-      
-      <button type="button" id="btnSubmitDriverRating" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs transition shadow">
-        💾 Guardar Calificación
-      </button>
-    </div>
-  </div>
-
   <!-- MODAL TICKET IMPRIMIBLE -->
   <div id="ticketModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
     <div id="ticketModalCard" class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-4 space-y-4 my-8">
@@ -409,10 +350,6 @@
         setupTicketModalEvents();
         setupDeliveryModalEvents();
         setupSellerChatEvents();
-        setupDriverRatingEvents();
-        if (document.getElementById('closeDriverQuickViewBtn')) {
-          document.getElementById('closeDriverQuickViewBtn').onclick = () => document.getElementById('driverQuickViewModal').classList.add('hidden');
-        }
         await loadStoreOrders();
         enableRealtimeDeliverySync();
       } catch (err) {
@@ -633,13 +570,13 @@
       attachOrderEvents();
     }
 
-    // MÓDULO 2: DESPACHO ACTIVO & CHAT Y PINS
+    // MÓDULO 2: DESPACHO ACTIVO & CHAT
     function renderModule2DeliveryHub() {
       const container = document.getElementById('deliveryHubList');
       const badgeAlert = document.getElementById('activeDeliveryBadge');
 
       const activeRequests = deliveryRequestsList.filter(r => 
-        ['pending', 'counter_offered', 'accepted', 'in_transit', 'on_the_way'].includes(r.status)
+        ['pending', 'counter_offered', 'accepted', 'on_the_way'].includes(r.status)
       );
 
       if (activeRequests.length > 0) {
@@ -668,10 +605,7 @@
           statusBox = `
             <div class="bg-blue-50 border-2 border-blue-400 p-3 rounded-xl space-y-2">
               <div class="flex justify-between items-center">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-black text-blue-900">🔄 Contraoferta de ${dashEscapeHtml(driverName)}:</span>
-                  ${r.driver_id ? `<button type="button" onclick="openDriverQuickView('${r.driver_id}')" class="text-[10px] font-black bg-blue-200 text-blue-900 px-2 py-0.5 rounded-md hover:bg-blue-300 transition">🔍 Ver Piloto</button>` : ''}
-                </div>
+                <span class="font-black text-blue-900">🔄 Contraoferta de ${dashEscapeHtml(driverName)}:</span>
                 <span class="font-black text-blue-700 text-sm bg-blue-100 px-2 py-0.5 rounded-lg">Q${counterVal}</span>
               </div>
               <div class="grid grid-cols-2 gap-2 pt-1">
@@ -686,41 +620,16 @@
             </div>`;
         } else {
           statusBox = `
-            <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-xs space-y-2">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="flex items-center gap-1.5">
-                    <span class="font-black text-emerald-950 block">🛵 ${dashEscapeHtml(driverName)}</span>
-                    ${r.driver_id ? `<button type="button" onclick="openDriverQuickView('${r.driver_id}')" class="text-[10px] font-black bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-md hover:bg-emerald-300 transition">🔍 Ver Piloto</button>` : ''}
-                  </div>
-                  <span class="text-emerald-700 font-bold">Tarifa Acordada: Q${parseFloat(finalPrice).toFixed(2)}</span>
-                </div>
-                <button type="button" onclick="openSellerChat('${r.id}', '${dashEscapeHtml(driverName)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-sm">
-                  💬 Chat Piloto
-                </button>
+            <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-xs flex items-center justify-between">
+              <div>
+                <span class="font-black text-emerald-950 block">🛵 ${dashEscapeHtml(driverName)}</span>
+                <span class="text-emerald-700 font-bold">Tarifa Acordada: Q${parseFloat(finalPrice).toFixed(2)}</span>
               </div>
+              <button type="button" onclick="openSellerChat('${r.id}', '${dashEscapeHtml(driverName)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-sm">
+                💬 Chat Piloto
+              </button>
             </div>`;
         }
-
-        const pinBox = `
-          <div class="grid grid-cols-2 gap-2 pt-1">
-            <div class="bg-amber-50/90 border border-amber-200 p-2 rounded-xl text-center shadow-xs">
-              <span class="text-[9px] font-black text-amber-800 uppercase block tracking-tight">📌 PIN Recolección (Tienda)</span>
-              <span class="text-base font-black font-mono text-amber-950 tracking-widest">${r.pickup_pin || '----'}</span>
-            </div>
-            <div class="bg-emerald-50/90 border border-emerald-200 p-2 rounded-xl text-center shadow-xs">
-              <span class="text-[9px] font-black text-emerald-800 uppercase block tracking-tight">🔑 PIN Entrega (Cliente)</span>
-              <span class="text-base font-black font-mono text-emerald-950 tracking-widest">${r.delivery_pin || '----'}</span>
-            </div>
-          </div>
-        `;
-
-        const rateButton = r.driver_id ? `
-          <button type="button" onclick="openRateDriverModal('${r.id}', '${dashEscapeHtml(driverName)}', ${r.driver_rating || 'null'})"
-            class="w-full ${r.driver_rating ? 'bg-amber-50 text-amber-900 border border-amber-300' : 'bg-slate-900 text-white'} font-extrabold py-2 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5">
-            <span>⭐ ${r.driver_rating ? `Tu Calificación: ${r.driver_rating}/5 (Editar)` : 'Calificar Servicio del Piloto'}</span>
-          </button>
-        ` : '';
 
         return `
           <article class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3" id="req_card_${r.id}">
@@ -732,9 +641,7 @@
               </div>
               <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 uppercase">${r.status}</span>
             </div>
-            ${pinBox}
             ${statusBox}
-            ${rateButton}
           </article>`;
       }).join('');
     }
@@ -759,34 +666,20 @@
         return;
       }
 
-      container.innerHTML = historyRequests.map(r => {
-        const driverName = r.driver?.full_name || 'Piloto Asignado';
-        return `
-          <article class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3">
-            <div class="flex justify-between items-center border-b pb-2">
-              <div>
-                <p class="font-extrabold text-xs text-slate-900">📍 Destino: ${dashEscapeHtml(r.destination_address || 'Cliente')}</p>
-                <div class="flex items-center gap-2 mt-0.5">
-                  <p class="text-[11px] text-slate-500 font-medium">Piloto: ${dashEscapeHtml(driverName)}</p>
-                  ${r.driver_id ? `<button type="button" onclick="openDriverQuickView('${r.driver_id}')" class="text-[10px] font-black text-blue-600 hover:underline">🔍 Ver Piloto</button>` : ''}
-                </div>
-              </div>
-              <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${r.status === 'delivered' || r.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'} uppercase">
-                ${r.status}
-              </span>
+      container.innerHTML = historyRequests.map(r => `
+        <article class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-2">
+          <div class="flex justify-between items-center border-b pb-2">
+            <div>
+              <p class="font-extrabold text-xs text-slate-900">📍 Destino: ${dashEscapeHtml(r.destination_address || 'Cliente')}</p>
+              <p class="text-[11px] text-slate-500">Piloto: ${dashEscapeHtml(r.driver?.full_name || 'No asignado')}</p>
             </div>
-            <div class="flex justify-between items-center text-xs">
-              <span class="font-black text-slate-900">Tarifa Cobrada: Q${parseFloat(r.final_fee || r.suggested_fee || 0).toFixed(2)}</span>
-            </div>
-            ${r.driver_id ? `
-              <button type="button" onclick="openRateDriverModal('${r.id}', '${dashEscapeHtml(driverName)}', ${r.driver_rating || 'null'})"
-                class="w-full ${r.driver_rating ? 'bg-amber-50 text-amber-900 border border-amber-300' : 'bg-slate-900 text-white'} font-extrabold py-2 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5">
-                <span>⭐ ${r.driver_rating ? `Tu Calificación: ${r.driver_rating}/5 (Editar)` : 'Calificar Servicio del Piloto'}</span>
-              </button>
-            ` : ''}
-          </article>
-        `;
-      }).join('');
+            <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${r.status === 'delivered' || r.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'} uppercase">
+              ${r.status}
+            </span>
+          </div>
+          <p class="text-xs font-black text-slate-900">Tarifa Cobrada: Q${parseFloat(r.final_fee || r.suggested_fee || 0).toFixed(2)}</p>
+        </article>
+      `).join('');
     }
 
     function switchToDeliveryHub(reqId) {
@@ -823,92 +716,6 @@
         alert('Contraoferta rechazada. La carrera regresó al feed general.');
         await loadStoreOrders();
       }
-    }
-
-    // QUICK VIEW PILOTO
-    async function openDriverQuickView(driverId) {
-      if (!driverId) return;
-      const client = window._supabase || initSupabaseClient();
-      const modal = document.getElementById('driverQuickViewModal');
-      
-      const { data: driver } = await client.from('delivery_drivers').select('*').eq('id', driverId).maybeSingle();
-      if (!driver) {
-        alert('No se encontraron detalles del repartidor.');
-        return;
-      }
-
-      const { data: ratings } = await client.from('delivery_requests').select('driver_rating, status').eq('driver_id', driverId);
-      
-      const validRatings = (ratings || []).filter(r => r.driver_rating > 0);
-      const avgRating = validRatings.length > 0 
-        ? (validRatings.reduce((acc, curr) => acc + parseFloat(curr.driver_rating), 0) / validRatings.length).toFixed(1)
-        : '5.0';
-      const completedCount = (ratings || []).filter(r => ['delivered', 'completed'].includes(r.status)).length;
-
-      document.getElementById('quickDriverName').textContent = driver.full_name || 'Piloto Registrado';
-      document.getElementById('quickDriverRatingStars').textContent = `⭐ ${avgRating} (${completedCount} entregas)`;
-      document.getElementById('quickDriverPhone').textContent = driver.phone || 'N/A';
-      document.getElementById('quickDriverVehicle').textContent = driver.vehicle_type || 'Motocicleta';
-      document.getElementById('quickDriverPlate').textContent = driver.license_plate || 'Sin placa registrada';
-
-      modal.classList.remove('hidden');
-    }
-
-    // CALIFICACIÓN DE PILOTO
-    function setupDriverRatingEvents() {
-      const closeBtn = document.getElementById('closeRateDriverBtn');
-      if (closeBtn) closeBtn.onclick = () => document.getElementById('rateDriverModal').classList.add('hidden');
-      
-      const stars = document.querySelectorAll('#driverStarRatingContainer .driver-star');
-      stars.forEach(s => {
-        s.onclick = () => {
-          const val = parseInt(s.dataset.star, 10);
-          document.getElementById('selectedDriverScore').value = val;
-          updateDriverStarUI(val);
-        };
-      });
-
-      const submitBtn = document.getElementById('btnSubmitDriverRating');
-      if (submitBtn) {
-        submitBtn.onclick = async () => {
-          const reqId = document.getElementById('rateDriverReqId').value;
-          const score = parseInt(document.getElementById('selectedDriverScore').value, 10);
-          const comment = document.getElementById('rateDriverComment').value.trim();
-          const client = window._supabase || initSupabaseClient();
-
-          const { error } = await client.from('delivery_requests').update({
-            driver_rating: score,
-            updated_at: new Date().toISOString()
-          }).eq('id', reqId);
-
-          if (error) {
-            alert('Error al guardar la calificación: ' + error.message);
-          } else {
-            alert('¡Calificación enviada con éxito! ⭐');
-            document.getElementById('rateDriverModal').classList.add('hidden');
-            await loadStoreOrders();
-          }
-        };
-      }
-    }
-
-    function updateDriverStarUI(score) {
-      const stars = document.querySelectorAll('#driverStarRatingContainer .driver-star');
-      stars.forEach((s, idx) => {
-        s.style.opacity = (idx < score) ? '1' : '0.3';
-      });
-    }
-
-    function openRateDriverModal(requestId, driverName, currentRating) {
-      document.getElementById('rateDriverReqId').value = requestId;
-      document.getElementById('rateDriverName').textContent = `Piloto: ${driverName}`;
-      document.getElementById('rateDriverComment').value = '';
-      
-      const score = currentRating || 5;
-      document.getElementById('selectedDriverScore').value = score;
-      updateDriverStarUI(score);
-
-      document.getElementById('rateDriverModal').classList.remove('hidden');
     }
 
     // GESTIÓN DEL CHAT EN VIVO
@@ -1046,18 +853,11 @@
             statusDetailMsg = 'Tu pedido continúa su proceso con éxito.';
           }
 
-          const delReq = deliveryRequestsMap[order.id];
-          let pinMsg = '';
-          if (delReq && delReq.delivery_pin) {
-            pinMsg = `\n\n🔑 *Tu PIN de confirmación para el repartidor es:* *${delReq.delivery_pin}*\n(Compártelo con el piloto al momento de recibir tu pedido)`;
-          }
-
           const msg = `Hola *${order.customer_name || 'Cliente'}*, te saludamos de *${currentStore.name}* 🏪.\n\n` +
                       `Tu pedido ha cambiado de estado:\n` +
                       `📌 *NUEVO ESTADO:* ${statusLabel}\n` +
                       `${statusDetailMsg}\n\n` +
-                      `📍 *Sigue el progreso en vivo de tu pedido aquí:*\n${trackingUrl}` +
-                      `${pinMsg}\n\n` +
+                      `📍 *Sigue el progreso en vivo de tu pedido aquí:*\n${trackingUrl}\n\n` +
                       `¡Gracias por tu preferencia!`;
 
           window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -1157,14 +957,9 @@
             <p class="font-extrabold text-xs text-slate-900">🛵 ${dashEscapeHtml(d.full_name || 'Piloto')}</p>
             <p class="text-[11px] text-slate-500">📞 ${dashEscapeHtml(d.phone || 'N/A')}</p>
           </div>
-          <div class="flex items-center gap-1.5">
-            <button type="button" onclick="openDriverQuickView('${d.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl text-xs">
-              🔍 Perfil
-            </button>
-            <button type="button" onclick="assignDirectDriver('${d.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs shadow-sm">
-              Elegir
-            </button>
-          </div>
+          <button type="button" onclick="assignDirectDriver('${d.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs shadow-sm">
+            Elegir
+          </button>
         </div>`).join('');
     }
 
@@ -1172,9 +967,6 @@
       const orderId = document.getElementById('modalOrderId').value;
       const client = window._supabase || initSupabaseClient();
       
-      const pPin = String(Math.floor(1000 + Math.random() * 9000));
-      const dPin = String(Math.floor(1000 + Math.random() * 9000));
-
       const { data, error } = await client.from('delivery_requests').insert([{
         order_id: orderId,
         store_id: currentStore.id,
@@ -1184,9 +976,7 @@
         status: 'pending',
         suggested_fee: parseFloat(document.getElementById('modalSuggestedFee').value) || 15.00,
         origin_address: document.getElementById('modalOriginAddress').value.trim(),
-        destination_address: document.getElementById('modalDestinationAddress').value.trim(),
-        pickup_pin: pPin,
-        delivery_pin: dPin
+        destination_address: document.getElementById('modalDestinationAddress').value.trim()
       }]).select().single();
 
       if (error) {
@@ -1207,9 +997,6 @@
         const orderId = document.getElementById('modalOrderId').value;
         const client = window._supabase || initSupabaseClient();
 
-        const pPin = String(Math.floor(1000 + Math.random() * 9000));
-        const dPin = String(Math.floor(1000 + Math.random() * 9000));
-
         const { data, error } = await client.from('delivery_requests').insert([{
           order_id: orderId,
           store_id: currentStore.id,
@@ -1217,9 +1004,7 @@
           status: 'pending',
           suggested_fee: parseFloat(document.getElementById('modalSuggestedFee').value) || 15.00,
           origin_address: document.getElementById('modalOriginAddress').value.trim(),
-          destination_address: document.getElementById('modalDestinationAddress').value.trim(),
-          pickup_pin: pPin,
-          delivery_pin: dPin
+          destination_address: document.getElementById('modalDestinationAddress').value.trim()
         }]).select().single();
 
         if (error) {
@@ -1238,7 +1023,7 @@
       if (s === 'pending' || s === 'sent') return 'sent';
       if (s === 'confirmed') return 'confirmed';
       if (s === 'preparing') return 'preparing';
-      if (s === 'on_the_way' || s === 'in_transit') return 'on_the_way';
+      if (s === 'on_the_way') return 'on_the_way';
       if (s === 'completed' || s === 'delivered') return 'completed';
       if (s === 'cancelled' || s === 'rejected') return 'cancelled_group';
       return 'sent';

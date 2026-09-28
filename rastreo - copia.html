@@ -60,13 +60,6 @@
           </div>
         </div>
 
-        <!-- BADGE PIN DE CONFIRMACIÓN DEL CLIENTE -->
-        <div id="customerPinBadge" class="hidden p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl text-center space-y-1 shadow-sm">
-          <p class="text-[11px] font-black uppercase tracking-wider text-amber-900">🔑 Tu PIN de Recepción de Seguridad</p>
-          <p id="resCustomerPin" class="text-3xl font-black font-mono text-slate-900 tracking-widest">0000</p>
-          <p class="text-[11px] text-amber-800 font-medium">Muestra este código de 4 dígitos al repartidor para recibir tu pedido.</p>
-        </div>
-
         <!-- Banner especial para pedidos Cancelados o Rechazados -->
         <div id="cancelledBanner" class="hidden p-4 bg-rose-50 border border-rose-200 rounded-2xl text-center space-y-1">
           <p id="cancelledTitle" class="text-sm font-black text-rose-800">🔴 Pedido Cancelado</p>
@@ -169,16 +162,10 @@
     async function fetchAndRenderOrder(id) {
       const resContainer = document.getElementById('orderResultContainer');
       const errContainer = document.getElementById('errorContainer');
-      const pinBadge = document.getElementById('customerPinBadge');
-      
       resContainer.classList.add('hidden');
       errContainer.classList.add('hidden');
-      if (pinBadge) pinBadge.classList.add('hidden');
 
-      const client = window._supabase || (typeof _supabase !== 'undefined' ? _supabase : null);
-      if (!client) return;
-
-      const { data, error } = await client
+      const { data, error } = await _supabase
         .from('cart_orders')
         .select('*')
         .eq('id', id)
@@ -206,20 +193,6 @@
           <span class="font-bold text-slate-900">Q ${((parseFloat(it.price) || 0) * (parseInt(it.quantity) || 1)).toFixed(2)}</span>
         </div>
       `).join('');
-
-      // Buscar si tiene PIN de entrega asignado
-      const { data: delReq } = await client
-        .from('delivery_requests')
-        .select('delivery_pin, status')
-        .eq('order_id', id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (pinBadge && delReq && delReq.delivery_pin && !['cancelled', 'rejected'].includes((data.status || '').toLowerCase())) {
-        document.getElementById('resCustomerPin').textContent = delReq.delivery_pin;
-        pinBadge.classList.remove('hidden');
-      }
 
       updateStepper(data.status);
       resContainer.classList.remove('hidden');
@@ -253,7 +226,7 @@
       if (normalized === 'sent' || normalized === 'pending') activeIndex = 0;
       else if (normalized === 'confirmed') activeIndex = 1;
       else if (normalized === 'preparing' || normalized === 'contacted') activeIndex = 2;
-      else if (normalized === 'on_the_way' || normalized === 'in_transit' || normalized === 'ready') activeIndex = 3;
+      else if (normalized === 'on_the_way' || normalized === 'ready') activeIndex = 3;
       else if (normalized === 'completed' || normalized === 'delivered') activeIndex = 4;
 
       steps.forEach((step, idx) => {
