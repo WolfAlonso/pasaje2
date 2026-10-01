@@ -1,7 +1,8 @@
 // =============================================================
 // js/dashboard-sidebar.js
 // Sidebar y Topbar adaptativos con soporte Multi-Rol,
-// Enrutamiento Inteligente, Selector de Modo y Activador de Perfiles.
+// Enrutamiento Inteligente, Selector de Modo, Activador de Perfiles
+// y Badges de Notificación en tiempo real (Fase 17.3).
 // =============================================================
 
 (function () {
@@ -9,10 +10,13 @@
 
   const ROOT              = '../';
   const ACTIVE_STORE_KEY  = 'activeStoreId';
-  const DASH_MODE_KEY     = 'pasajeDashMode'; // 'merchant' | 'delivery' | 'real_estate'
+  const DASH_MODE_KEY     = 'pasajeDashMode';
   const SIDEBAR_ID        = 'pasajeDashSidebar';
   const OVERLAY_ID        = 'pasajeDashSidebarOverlay';
   const SECTION_STATE_KEY = 'pasaje_dash_sidebar_sections';
+
+  let badgeChannel = null;
+  let badgeDebounce = null;
 
   const SECTIONS_MERCHANT = [
     {
@@ -56,7 +60,7 @@
       title: 'Pasaje Delivery Xela',
       openByDefault: true,
       items: [
-        { key: 'delivery-feed', label: 'Feed de Carreras', href: 'dashboard-delivery.html', icon: '🛵' }
+        { key: 'delivery-feed', label: 'Feed de Carreras', href: 'dashboard-delivery.html', icon: '🛵', badge: 'delivery' }
       ]
     }
   ];
@@ -83,11 +87,8 @@
 
   function escapeHtml(str) {
     return String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function getSectionState() {
@@ -102,14 +103,18 @@
     return Object.prototype.hasOwnProperty.call(state, id) ? !!state[id] : !!defaultOpen;
   }
 
+  function client() {
+    return window._supabase || (typeof initSupabaseClient === 'function' ? initSupabaseClient() : null);
+  }
+
   async function getUserRoles(userId) {
     if (!userId) return { is_merchant: true, is_delivery: false, is_real_estate: false };
+    const c = client();
+    if (!c) return { is_merchant: true, is_delivery: false, is_real_estate: false };
 
-    const { data } = await _supabase
-      .from('user_roles')
+    const { data } = await c.from('user_roles')
       .select('is_merchant, is_delivery, is_real_estate')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', userId).maybeSingle();
 
     return {
       is_merchant: data ? data.is_merchant !== false : true,
@@ -119,64 +124,41 @@
   }
 
   async function getMyStores() {
-    const session = await requireAuth();
+    const session = typeof window.requireAuth === 'function' ? await window.requireAuth() : null;
     if (!session) return { session: null, stores: [] };
+    const c = client();
+    if (!c) return { session, stores: [] };
 
-    const { data, error } = await _supabase
-      .from('stores')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('[DashboardSidebar] getMyStores:', error);
-      return { session, stores: [] };
-    }
+    const { data, error } = await c.from('stores').select('*')
+      .eq('user_id', session.user.id).order('created_at', { ascending: true });
+    if (error) { console.error('[DashboardSidebar] getMyStores:', error); return { session, stores: [] }; }
     return { session, stores: data || [] };
   }
 
   async function getActiveStore() {
     const { session, stores } = await getMyStores();
     if (!session) return { session: null, stores: [], store: null };
-    if (stores.length === 0) return { session, stores: [], store: null };
+    if (!stores || stores.length === 0) return { session, stores: [], store: null };
 
     const storedId = localStorage.getItem(ACTIVE_STORE_KEY);
     let active = stores.find(s => idEq(s.id, storedId));
-
-    if (!active) {
-      active = stores[0];
-      localStorage.setItem(ACTIVE_STORE_KEY, String(active.id));
-    }
+    if (!active) { active = stores[0]; localStorage.setItem(ACTIVE_STORE_KEY, String(active.id)); }
     return { session, stores, store: active };
   }
 
-  function setActiveStore(storeId) {
-    if (!storeId) return;
-    localStorage.setItem(ACTIVE_STORE_KEY, String(storeId));
-  }
-
-  function clearActiveStore() {
-    localStorage.removeItem(ACTIVE_STORE_KEY);
-  }
-
-  async function loadMyStore() {
-    const { store } = await getActiveStore();
-    return store;
-  }
+  function setActiveStore(id) { if (id) localStorage.setItem(ACTIVE_STORE_KEY, String(id)); }
+  function clearActiveStore() { localStorage.removeItem(ACTIVE_STORE_KEY); }
+  async function loadMyStore() { const { store } = await getActiveStore(); return store; }
 
   async function guardDashboardPage() {
     const { session, stores, store } = await getActiveStore();
     if (!session) return { session: null, stores: [], store: null };
 
     const page = getCurrentPage();
-    if (page === 'dashboard-delivery.html' || page === 'dashboard-inmuebles.html') {
+    if (page === 'dashboard-delivery.html' || page === 'dashboard-inmuebles.html' || page === 'dashboard.html') {
       return { session, stores: stores || [], store: store || null };
     }
-
-    if (!store) {
-      window.location.replace('dashboard-tiendas.html');
-      return { session, stores: [], store: null };
-    }
+    if (!store) { window.location.replace('dashboard-tiendas.html'); return { session, stores: [], store: null }; }
     return { session, stores, store };
   }
 
@@ -187,7 +169,6 @@
       s.id = 'pasajeDashSidebarStyles';
       document.head.appendChild(s);
     }
-
     s.textContent = `
       #${SIDEBAR_ID} {
         transition: transform .3s cubic-bezier(.2,.7,.2,1), background-color .2s, color .2s;
@@ -197,33 +178,38 @@
         color: var(--dash-sidebar-text, #1e293b) !important;
         border-right: 1px solid rgba(148, 163, 184, 0.25);
       }
-
-      #${SIDEBAR_ID} a, #${SIDEBAR_ID} button, #${SIDEBAR_ID} span, #${SIDEBAR_ID} p, #${SIDEBAR_ID} div {
-        text-decoration: none !important;
-      }
-
+      #${SIDEBAR_ID} a, #${SIDEBAR_ID} button, #${SIDEBAR_ID} span, #${SIDEBAR_ID} p, #${SIDEBAR_ID} div { text-decoration: none !important; }
       #${SIDEBAR_ID}.open { transform: translateX(0) !important; }
       body.pasaje-dash-sidebar-open { overflow: hidden; }
 
       #${SIDEBAR_ID} .pasaje-nav-link {
         transition: background .15s ease, color .15s ease, border .15s ease;
-        text-decoration: none !important;
-        border-radius: 0.75rem !important;
-        border: none !important;
-        border-left: 5px solid transparent !important;
+        text-decoration: none !important; border-radius: 0.75rem !important;
+        border: none !important; border-left: 5px solid transparent !important;
         color: var(--dash-sidebar-text, #1e293b) !important;
       }
-
       #${SIDEBAR_ID} .pasaje-nav-link:hover {
         background: color-mix(in srgb, var(--dash-sidebar-active, #10b981) 10%, transparent) !important;
         color: var(--dash-sidebar-active, #10b981) !important;
       }
-
       #${SIDEBAR_ID} .pasaje-nav-link.active {
         background: color-mix(in srgb, var(--dash-sidebar-active, #10b981) 18%, transparent) !important;
         color: var(--dash-sidebar-active, #10b981) !important;
         border-left: 5px solid var(--dash-sidebar-active, #10b981) !important;
         font-weight: 800 !important;
+      }
+
+      #${SIDEBAR_ID} .pasaje-nav-badge {
+        margin-left: auto; font-size: 10px; font-weight: 800;
+        background: #ef4444; color: #fff;
+        padding: 2px 7px; border-radius: 999px;
+        box-shadow: 0 2px 6px -2px rgba(239,68,68,.6);
+        animation: dashBadgePop .28s ease-out;
+      }
+      @keyframes dashBadgePop {
+        0%   { transform: scale(.5); opacity: 0; }
+        60%  { transform: scale(1.12); }
+        100% { transform: scale(1); opacity: 1; }
       }
 
       .dash-topbar-dynamic {
@@ -261,28 +247,20 @@
       const isActive = currentMode === m.key;
       return `
         <button type="button" data-switch-mode="${m.key}" class="flex-1 py-1.5 px-1 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 ${isActive ? 'bg-indigo-600 text-white shadow-sm' : 'opacity-70 hover:opacity-100'}">
-          <span>${m.icon}</span>
-          <span class="truncate">${m.label}</span>
-        </button>
-      `;
+          <span>${m.icon}</span><span class="truncate">${m.label}</span>
+        </button>`;
     }).join('');
 
     const hasMissingRoles = !roles.is_merchant || !roles.is_delivery || !roles.is_real_estate;
 
     return `
       <div class="px-3 pt-2 flex-shrink-0 space-y-1.5">
-        <div class="bg-black/10 p-1 rounded-xl flex items-center gap-1 border border-black/10">
-          ${buttons}
-        </div>
-
+        <div class="bg-black/10 p-1 rounded-xl flex items-center gap-1 border border-black/10">${buttons}</div>
         ${hasMissingRoles ? `
           <button type="button" id="btnOpenActivateRoleModal" class="w-full text-center py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 border border-emerald-300/40 rounded-xl text-[11px] font-black transition flex items-center justify-center gap-1">
-            <span>➕</span>
-            <span>Activar Nuevo Perfil</span>
-          </button>
-        ` : ''}
-      </div>
-    `;
+            <span>➕</span><span>Activar Nuevo Perfil</span>
+          </button>` : ''}
+      </div>`;
   }
 
   function renderSection(section, currentPage) {
@@ -290,15 +268,14 @@
     const itemsHTML = section.items.map(m => {
       const isActive = currentPage === m.href;
       const badgeHTML = m.badge
-        ? `<span data-dash-badge="${m.badge}" class="hidden ml-auto text-[10px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full">0</span>`
+        ? `<span data-dash-badge="${m.badge}" class="pasaje-nav-badge hidden">0</span>`
         : '';
       return `
         <a href="${m.href}" class="pasaje-nav-link flex items-center gap-3 pl-3 pr-2 py-2 rounded-r-xl text-sm ${isActive ? 'active' : ''}">
           <span class="text-lg flex-shrink-0">${m.icon}</span>
           <span class="truncate">${escapeHtml(m.label)}</span>
           ${badgeHTML}
-        </a>
-      `;
+        </a>`;
     }).join('');
 
     return `
@@ -310,8 +287,7 @@
         <div class="pasaje-section-body ${open ? '' : 'collapsed'}">
           <div class="pasaje-section-inner"><div class="space-y-0.5 pb-1">${itemsHTML}</div></div>
         </div>
-      </section>
-    `;
+      </section>`;
   }
 
   function renderStoreSwitcher(store, stores) {
@@ -322,8 +298,7 @@
             <p class="text-xs opacity-70 mb-2">Sin tiendas registradas</p>
             <a href="dashboard-tiendas.html" class="inline-flex items-center gap-1 text-[11px] bg-emerald-600 !text-white font-bold py-1.5 px-3 rounded-lg transition">+ Crear primera tienda</a>
           </div>
-        </div>
-      `;
+        </div>`;
     }
 
     const storeItems = stores.map(s => {
@@ -333,8 +308,7 @@
           ${storeAvatarHTML(s, 'w-7 h-7', 'text-xs')}
           <span class="flex-1 truncate text-left text-xs font-semibold">${escapeHtml(s.name)}</span>
           ${isActive ? '<span class="text-emerald-500 text-sm font-bold">✓</span>' : ''}
-        </button>
-      `;
+        </button>`;
     }).join('');
 
     return `
@@ -359,8 +333,7 @@
             <a href="dashboard-tiendas.html" class="w-full flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-emerald-50 text-xs font-bold text-emerald-700 transition mt-1 border-t border-gray-100 pt-2"><span class="text-base leading-none">+</span> Nueva tienda</a>
           </div>
         </details>
-      </div>
-    `;
+      </div>`;
   }
 
   function renderSidebar(user, store, stores, roles, activeMode) {
@@ -368,13 +341,8 @@
     let activeSections = SECTIONS_MERCHANT;
     let modeTitle = 'Panel Emprendedor';
 
-    if (activeMode === 'delivery') {
-      activeSections = SECTIONS_DELIVERY;
-      modeTitle = 'Panel Repartidor';
-    } else if (activeMode === 'real_estate') {
-      activeSections = SECTIONS_REAL_ESTATE;
-      modeTitle = 'Panel Inmuebles';
-    }
+    if (activeMode === 'delivery') { activeSections = SECTIONS_DELIVERY; modeTitle = 'Panel Repartidor'; }
+    else if (activeMode === 'real_estate') { activeSections = SECTIONS_REAL_ESTATE; modeTitle = 'Panel Inmuebles'; }
 
     const sectionsHTML = activeSections.map(sec => renderSection(sec, current)).join('');
 
@@ -395,12 +363,10 @@
 
         <div class="px-3 pt-2 pb-1 flex-shrink-0 space-y-1">
           <a href="${ROOT}index.html" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-extrabold bg-black/10 hover:bg-black/20 border border-black/10 transition shadow-sm !text-indigo-600 no-underline">
-            <span class="text-base">🏬</span>
-            <span>Ver Catálogo Público</span>
+            <span class="text-base">🏬</span><span>Ver Catálogo Público</span>
           </a>
           <a href="${ROOT}inmuebles.html" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-extrabold bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-200 transition shadow-sm !text-indigo-700 no-underline">
-            <span class="text-base">🏠</span>
-            <span>Ver Portal Inmuebles</span>
+            <span class="text-base">🏠</span><span>Ver Portal Inmuebles</span>
           </a>
         </div>
 
@@ -420,7 +386,6 @@
             <h3 class="font-extrabold text-slate-900 text-base">➕ Activar Nuevo Perfil</h3>
             <button id="btnCloseRoleModal" type="button" class="bg-slate-100 text-slate-700 w-8 h-8 rounded-full font-bold text-xs">✕</button>
           </div>
-
           <div class="space-y-3" id="roleActivationOptions">
             ${!roles.is_delivery ? `
               <button type="button" onclick="activateUserRole('delivery')" class="w-full p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition flex items-center gap-3">
@@ -429,9 +394,7 @@
                   <h4 class="font-extrabold text-xs text-emerald-900 uppercase">Activar Perfil de Repartidor</h4>
                   <p class="text-[11px] text-emerald-700">Realiza carreras de Pasaje Delivery en Xela.</p>
                 </div>
-              </button>
-            ` : ''}
-
+              </button>` : ''}
             ${!roles.is_real_estate ? `
               <button type="button" onclick="activateUserRole('real_estate')" class="w-full p-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-left transition flex items-center gap-3">
                 <span class="text-3xl">🏠</span>
@@ -439,9 +402,7 @@
                   <h4 class="font-extrabold text-xs text-indigo-900 uppercase">Activar Perfil Inmobiliario</h4>
                   <p class="text-[11px] text-indigo-700">Publica casas, cuartos o locales en alquiler/venta.</p>
                 </div>
-              </button>
-            ` : ''}
-
+              </button>` : ''}
             ${!roles.is_merchant ? `
               <button type="button" onclick="activateUserRole('merchant')" class="w-full p-4 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left transition flex items-center gap-3">
                 <span class="text-3xl">🏪</span>
@@ -449,12 +410,10 @@
                   <h4 class="font-extrabold text-xs text-blue-900 uppercase">Activar Perfil de Comercio</h4>
                   <p class="text-[11px] text-blue-700">Crea tu tienda y vende productos en la red.</p>
                 </div>
-              </button>
-            ` : ''}
+              </button>` : ''}
           </div>
         </div>
-      </div>
-    `;
+      </div>`;
   }
 
   function renderTopbar(user, store) {
@@ -470,41 +429,51 @@
           </div>
           <div class="flex items-center gap-2">
             <a href="${ROOT}inmuebles.html" class="text-xs bg-indigo-500/30 hover:bg-indigo-500/40 text-white border border-indigo-300/30 px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1">
-              <span>🏠</span>
-              <span>Portal Inmuebles</span>
+              <span>🏠</span><span>Portal Inmuebles</span>
             </a>
             <a href="${ROOT}index.html" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-semibold transition">Catálogo</a>
           </div>
         </div>
-      </header>
-    `;
+      </header>`;
   }
 
   function openSidebar() {
     const el = document.getElementById(SIDEBAR_ID);
     const ov = document.getElementById(OVERLAY_ID);
     if (!el || !ov) return;
-    ov.classList.remove('hidden');
-    el.classList.add('open');
+    ov.classList.remove('hidden'); el.classList.add('open');
     el.style.transform = 'translateX(0)';
     document.body.classList.add('pasaje-dash-sidebar-open');
   }
-
   function closeSidebar() {
     const el = document.getElementById(SIDEBAR_ID);
     const ov = document.getElementById(OVERLAY_ID);
     if (!el || !ov) return;
-    ov.classList.add('hidden');
-    el.classList.remove('open');
+    ov.classList.add('hidden'); el.classList.remove('open');
     el.style.transform = 'translateX(-100%)';
     document.body.classList.remove('pasaje-dash-sidebar-open');
   }
-
   function toggleSidebar() {
     const el = document.getElementById(SIDEBAR_ID);
     if (!el) return;
-    if (el.classList.contains('open')) closeSidebar();
-    else openSidebar();
+    if (el.classList.contains('open')) closeSidebar(); else openSidebar();
+  }
+
+  function bindAccordion() {
+    document.querySelectorAll(`#${SIDEBAR_ID} [data-acc-toggle]`).forEach(btn => {
+      if (btn.dataset.accBound) return;
+      btn.dataset.accBound = '1';
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.accToggle;
+        const section = btn.closest('[data-acc-section]');
+        if (!section) return;
+        const body = section.querySelector('.pasaje-section-body');
+        const chevron = btn.querySelector('.pasaje-chevron');
+        const collapsed = body.classList.toggle('collapsed');
+        if (chevron) chevron.classList.toggle('rotated', collapsed);
+        const state = getSectionState(); state[id] = !collapsed; saveSectionState(state);
+      });
+    });
   }
 
   function bindModeSwitcher() {
@@ -519,31 +488,114 @@
     });
 
     const btnOpenModal = document.getElementById('btnOpenActivateRoleModal');
-    if (btnOpenModal) {
-      btnOpenModal.addEventListener('click', () => {
-        document.getElementById('activateRoleModal').classList.remove('hidden');
-      });
-    }
+    if (btnOpenModal) btnOpenModal.addEventListener('click', () => {
+      document.getElementById('activateRoleModal').classList.remove('hidden');
+    });
 
     const btnCloseModal = document.getElementById('btnCloseRoleModal');
-    if (btnCloseModal) {
-      btnCloseModal.addEventListener('click', () => {
-        document.getElementById('activateRoleModal').classList.add('hidden');
+    if (btnCloseModal) btnCloseModal.addEventListener('click', () => {
+      document.getElementById('activateRoleModal').classList.add('hidden');
+    });
+
+    document.querySelectorAll(`[data-store-id]`).forEach(btn => {
+      btn.addEventListener('click', () => {
+        setActiveStore(btn.dataset.storeId);
+        window.location.reload();
       });
+    });
+  }
+
+  // =========================================================
+  // FASE 17.3 — Badges de Notificación en tiempo real
+  // =========================================================
+
+  function setBadge(name, count) {
+    const el = document.querySelector(`[data-dash-badge="${name}"]`);
+    if (!el) return;
+    const n = Number(count) || 0;
+    if (n <= 0) {
+      el.textContent = '';
+      el.classList.add('hidden');
+    } else {
+      el.textContent = n > 99 ? '99+' : String(n);
+      el.classList.remove('hidden');
     }
   }
 
+  async function refreshNavBadges({ storeId, userId, roles } = {}) {
+    const c = client();
+    if (!c) return;
+
+    // Pedidos pendientes (status 'sent') de la tienda activa
+    if (storeId && (!roles || roles.is_merchant !== false)) {
+      try {
+        const { count, error } = await c
+          .from('cart_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('store_id', storeId)
+          .eq('status', 'sent');
+        if (!error) setBadge('pedidos', count || 0);
+      } catch (e) { /* silencioso */ }
+    }
+
+    // Delivery: solicitudes broadcast pendientes + counter-ofertas al store
+    if (storeId) {
+      try {
+        const { data, error } = await c
+          .from('delivery_requests')
+          .select('id, status, store_id, driver_id')
+          .in('status', ['pending', 'counter_offered'])
+          .eq('store_id', storeId);
+        if (!error) setBadge('delivery', (data || []).length);
+      } catch (e) { /* silencioso */ }
+    }
+
+    // Soporte: si la tabla existe, contar abiertos del store
+    // (se deja el badge silencioso si no aplica)
+  }
+
+  function subscribeNavBadges({ storeId, userId }) {
+    const c = client();
+    if (!c || !storeId) return;
+
+    try {
+      if (badgeChannel) c.removeChannel(badgeChannel);
+
+      badgeChannel = c
+        .channel(`dash_badges_${storeId}_${userId || 'anon'}`)
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'cart_orders', filter: `store_id=eq.${storeId}` },
+          () => scheduleBadgeRefresh({ storeId, userId })
+        )
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'delivery_requests', filter: `store_id=eq.${storeId}` },
+          () => scheduleBadgeRefresh({ storeId, userId })
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('[DashboardSidebar] badge subscription failed:', e);
+    }
+  }
+
+  function scheduleBadgeRefresh(ctx) {
+    if (badgeDebounce) clearTimeout(badgeDebounce);
+    badgeDebounce = setTimeout(() => refreshNavBadges(ctx), 250);
+  }
+
+  // =========================================================
+  // Activación de roles
+  // =========================================================
   window.activateUserRole = async function (roleKey) {
     try {
-      const session = await requireAuth();
+      const session = typeof window.requireAuth === 'function' ? await window.requireAuth() : null;
       if (!session) return;
-
+      const c = client();
       const updateData = {};
       if (roleKey === 'delivery') updateData.is_delivery = true;
       if (roleKey === 'real_estate') updateData.is_real_estate = true;
       if (roleKey === 'merchant') updateData.is_merchant = true;
 
-      await _supabase.from('user_roles').upsert([{ user_id: session.user.id, ...updateData }], { onConflict: 'user_id' });
+      await c.from('user_roles').upsert([{ user_id: session.user.id, ...updateData }], { onConflict: 'user_id' });
 
       localStorage.setItem(DASH_MODE_KEY, roleKey);
       if (roleKey === 'delivery') window.location.href = 'dashboard-delivery.html';
@@ -554,6 +606,9 @@
     }
   };
 
+  // =========================================================
+  // initDashboardNav
+  // =========================================================
   async function initDashboardNav({ user, store, stores } = {}) {
     if (!user) return;
     injectStyles();
@@ -569,7 +624,6 @@
       const res = await getMyStores();
       stores = res.stores;
     }
-
     if (!store && stores && stores.length > 0) {
       const storedId = localStorage.getItem(ACTIVE_STORE_KEY);
       store = stores.find(s => idEq(s.id, storedId)) || stores[0];
@@ -587,21 +641,37 @@
     const openBtn  = document.getElementById(`${SIDEBAR_ID}Open`);
     const closeBtn = document.getElementById(`${SIDEBAR_ID}Close`);
     const overlay  = document.getElementById(OVERLAY_ID);
-
     if (openBtn)  openBtn.addEventListener('click', openSidebar);
     if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
     if (overlay)  overlay.addEventListener('click', closeSidebar);
 
+    bindAccordion();
     bindModeSwitcher();
+
+    // Esc cierra el sidebar
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeSidebar();
+    });
 
     const logoutBtn = document.getElementById('dashboardLogoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
-        try { await _supabase.auth.signOut(); } catch (e) {}
+        try { const c = client(); await c.auth.signOut(); } catch (e) {}
         clearActiveStore();
         window.location.replace(ROOT + 'login.html');
       });
     }
+
+    // Cargar badges y suscribirse a cambios en tiempo real
+    const badgeCtx = { storeId: store?.id || null, userId: user.id, roles };
+    await refreshNavBadges(badgeCtx);
+    subscribeNavBadges(badgeCtx);
+
+    // Refresco al volver el foco a la pestaña
+    window.addEventListener('focus', () => refreshNavBadges(badgeCtx));
+
+    // API pública para que las páginas refresquen manualmente tras mutaciones
+    window.__pasajeRefreshDashBadges = () => refreshNavBadges(badgeCtx);
   }
 
   window.initDashboardNav       = initDashboardNav;

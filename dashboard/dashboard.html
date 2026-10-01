@@ -10,11 +10,11 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../js/supabase.js?v=4"></script>
-  <script src="../js/theme-loader.js?v=4"></script>
-  <script src="../js/dashboard-utils.js?v=4"></script>
-  <script src="../js/dashboard-sidebar.js?v=4"></script>
-  <script src="../js/liquid-glass.js?v=4"></script>
+  <script src="../js/supabase.js?v=5"></script>
+  <script src="../js/theme-loader.js?v=5"></script>
+  <script src="../js/dashboard-utils.js?v=5"></script>
+  <script src="../js/dashboard-sidebar.js?v=6"></script>
+  <script src="../js/liquid-glass.js?v=5"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,7 +63,6 @@
 <body class="min-h-screen text-slate-800">
 
   <div id="dashboardHeader"></div>
-  <aside id="sidebar-container"></aside>
 
   <main class="min-h-screen text-slate-800 max-w-4xl mx-auto p-4 mt-4">
 
@@ -71,7 +70,7 @@
       Cargando tu panel...
     </div>
 
-    <!-- VISTA SETUP -->
+    <!-- VISTA SETUP (CREACIÓN DE TIENDA SI NO TIENE) -->
     <section id="setupView" class="hidden">
       <div class="pasaje-card bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm">
         <div class="text-center mb-6">
@@ -128,7 +127,7 @@
       </div>
     </section>
 
-    <!-- VISTA MENU -->
+    <!-- VISTA MENU PRINCIPAL -->
     <div id="menuWrapper" class="hidden">
       <div id="dashboardTabs"></div>
 
@@ -152,6 +151,12 @@
             <div class="text-3xl mb-2">📦</div>
             <h3 class="font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Productos</h3>
             <p class="text-xs text-slate-500 mt-1">Publica, edita y gestiona tu inventario.</p>
+          </a>
+
+          <a href="dashboard-pedidos.html" class="pasaje-card bg-white/80 backdrop-blur-md border border-slate-200/80 dash-menu-card rounded-2xl p-5 group shadow-sm">
+            <div class="text-3xl mb-2">🛒</div>
+            <h3 class="font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Pedidos & Tickets</h3>
+            <p class="text-xs text-slate-500 mt-1">Gestiona pedidos, tickets e impresiones.</p>
           </a>
 
           <a href="dashboard-metricas.html" class="pasaje-card bg-white/80 backdrop-blur-md border border-slate-200/80 dash-menu-card rounded-2xl p-5 group shadow-sm">
@@ -216,16 +221,16 @@
       await loadCategories();
 
       const { stores, store } = await getActiveStore();
-      allStores = stores;
+      allStores = stores || [];
       currentStore = store;
 
       document.getElementById('loadingState').classList.add('hidden');
 
-      if (stores.length === 0) {
+      if (allStores.length === 0) {
         await initDashboardNav({ user: currentUser, stores: [], store: null });
         document.getElementById('setupView').classList.remove('hidden');
       } else {
-        await initDashboardNav({ user: currentUser, stores, store });
+        await initDashboardNav({ user: currentUser, stores: allStores, store: currentStore });
         document.getElementById('menuWrapper').classList.remove('hidden');
         if (currentStore && currentStore.id) {
           loadSupportBadge(currentStore.id);
@@ -235,8 +240,9 @@
 
     async function loadCategories() {
       try {
-        if (typeof _supabase === 'undefined') return;
-        const { data } = await _supabase.from('categories').select('*').order('sort_order');
+        const client = window._supabase || initSupabaseClient();
+        if (!client) return;
+        const { data } = await client.from('categories').select('*').order('sort_order');
         const options = (data || []).map(c => `<option value="${c.id}">${c.icon || ''} ${c.name}</option>`).join('');
         const select = document.getElementById('storeMainCategory');
         if (select) select.innerHTML = '<option value="">Selecciona una categoría...</option>' + options;
@@ -247,7 +253,8 @@
       const badge = document.getElementById('supportBadge');
       if (!badge) return;
       try {
-        const { count } = await _supabase.from('reports').select('id', { count: 'exact', head: true }).eq('store_id', storeId);
+        const client = window._supabase || initSupabaseClient();
+        const { count } = await client.from('reports').select('id', { count: 'exact', head: true }).eq('store_id', storeId);
         if (count > 0) {
           badge.textContent = count > 99 ? '99+' : String(count);
           badge.classList.remove('hidden');
@@ -255,6 +262,41 @@
         }
       } catch (e) {}
     }
+
+    document.getElementById('storeForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('storeSaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando tienda...';
+
+      try {
+        const client = window._supabase || initSupabaseClient();
+        const name = document.getElementById('storeName').value.trim();
+        const prefix = document.getElementById('storeWhatsappPrefix').value;
+        const phone = document.getElementById('storeWhatsapp').value.trim();
+        const category_id = document.getElementById('storeMainCategory').value;
+        const description = document.getElementById('storeDescription').value.trim();
+
+        const fullWhatsapp = dashCombinePhone(prefix, phone);
+
+        const { data, error } = await client.from('stores').insert([{
+          user_id: currentUser.id,
+          name,
+          whatsapp: fullWhatsapp,
+          category_id,
+          description: description || null
+        }]).select().single();
+
+        if (error) throw error;
+
+        localStorage.setItem('activeStoreId', String(data.id));
+        window.location.reload();
+      } catch (err) {
+        alert('Error al crear la tienda: ' + (err.message || err));
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Crear mi tienda';
+      }
+    });
   </script>
 </body>
 </html>

@@ -3,535 +3,1191 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pasaje Delivery · Repartidores</title>
+  <title>Panel de Repartidor · Pasaje de Los Altos</title>
+  <meta name="theme-color" content="#1e3a8a">
+  <link rel="manifest" href="../manifest.json">
+  <link rel="icon" href="../img/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../js/supabase.js?v=4"></script>
-  <script src="../js/theme-loader.js?v=4"></script>
-  <script src="../js/dashboard-utils.js?v=4"></script>
-  <script src="../js/dashboard-sidebar.js?v=6"></script>
+  <script src="../js/supabase.js?v=7"></script>
+  <script src="../js/theme-loader.js?v=7"></script>
+  <script src="../js/dashboard-utils.js?v=7"></script>
+  <script src="../js/dashboard-sidebar.js?v=8"></script>
+  <script src="../js/liquid-glass.js?v=4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }</style>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background-color: #f8fafc; }
+
+    .suspension-banner {
+      position: relative;
+      background: linear-gradient(135deg, rgba(220,38,38,.22), rgba(127,29,29,.28));
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid rgba(248,113,113,.45);
+      box-shadow: 0 10px 32px -10px rgba(220,38,38,.4), inset 0 1px 0 rgba(255,255,255,.15);
+      isolation: isolate; overflow: hidden;
+    }
+    .suspension-banner::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(45deg,
+        rgba(255,255,255,.03) 0px, rgba(255,255,255,.03) 12px,
+        transparent 12px, transparent 24px);
+      pointer-events: none;
+    }
+    .suspension-banner > * { position: relative; z-index: 2; }
+
+    .is-suspended .btn-action-locked {
+      opacity: .45; cursor: not-allowed !important; filter: grayscale(.4); pointer-events: none;
+    }
+
+    .stat-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 14px;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .stat-card:hover { transform: translateY(-1px); box-shadow: 0 6px 20px -8px rgba(15,23,42,.15); }
+
+    .hist-filter-btn {
+      padding: 6px 12px; border-radius: 999px;
+      font-size: 11px; font-weight: 800;
+      background: #fff; color: #475569;
+      border: 1px solid #e2e8f0;
+      cursor: pointer; transition: all .15s;
+      white-space: nowrap;
+    }
+    .hist-filter-btn:hover { background: #f1f5f9; }
+    .hist-filter-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+  </style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800">
+<body class="bg-slate-100 min-h-screen text-slate-800 antialiased">
 
   <div id="dashboardHeader"></div>
 
-  <main class="max-w-6xl mx-auto p-4 pb-16 space-y-6">
-    <div id="dashboardTabs"></div>
+  <main class="max-w-6xl mx-auto p-4 md:p-6 space-y-5 pb-20">
 
-    <div id="loadingState" class="bg-white rounded-2xl p-8 text-center text-sm text-slate-500 shadow-sm">
+    <!-- BANNER DE SUSPENSIÓN -->
+    <div id="suspensionBanner" class="hidden suspension-banner rounded-2xl p-5 flex items-start gap-4">
+      <div class="w-12 h-12 rounded-2xl bg-red-500/25 border border-red-300/40 flex items-center justify-center text-2xl flex-shrink-0">⛔</div>
+      <div class="flex-1 min-w-0">
+        <h3 class="font-black text-red-950 text-sm uppercase tracking-wide">Perfil Suspendido Temporalmente</h3>
+        <p class="text-red-900 text-xs mt-1 leading-snug">
+          Tu cuenta está bloqueada hasta el <strong id="suspensionDate" class="font-mono">—</strong>.
+        </p>
+        <p class="text-red-800/80 text-[11px] mt-1.5 leading-snug">
+          Durante este período no podrás activar tu disponibilidad ni aceptar nuevas carreras.
+          Si consideras que esto es un error, contacta al equipo de administración.
+        </p>
+      </div>
+    </div>
+
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>🛵 Centro de Repartos</span>
+        </h1>
+        <p class="text-xs text-slate-500 mt-1">Gana entregando pedidos de comercios locales en Xela.</p>
+      </div>
+      <div class="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+        <span class="text-xs font-extrabold text-slate-700">Estado:</span>
+        <button id="btnToggleOnline" class="px-3 py-1.5 rounded-lg text-xs font-black transition shadow-sm bg-slate-300 text-slate-600">
+          ⚪ Offline
+        </button>
+      </div>
+    </header>
+
+    <div id="loadingState" class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/80 p-8 text-center text-sm text-slate-500 shadow-sm">
       Cargando panel de repartidor...
     </div>
 
-    <section id="content" class="hidden space-y-6">
+    <section id="content" class="hidden space-y-5">
 
-      <!-- CARRERA EN CURSO -->
-      <div id="activeDeliverySection" class="hidden space-y-3 bg-emerald-50/50 p-4 rounded-3xl border-2 border-emerald-500 shadow-sm">
-        <div class="flex justify-between items-center">
-          <h2 class="font-black text-emerald-950 text-sm flex items-center gap-2">
-            <span class="animate-pulse">⚡</span> Carrera Activa en Cursado
-          </h2>
-          <span id="activeStatusBadge" class="bg-emerald-600 text-white font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">EN ROUTE</span>
-        </div>
-        
-        <div id="activeCard" class="bg-white p-4 rounded-2xl border text-xs space-y-3 shadow-xs"></div>
-
-        <!-- CHAT CON COMERCIO -->
-        <div class="bg-white p-4 rounded-2xl border space-y-3 shadow-xs">
-          <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-            <span>💬</span> Chat Directo con la Tienda
-          </h3>
-          <div id="driverChatMessages" class="h-36 overflow-y-auto p-3 bg-slate-50 border rounded-xl text-xs space-y-2"></div>
-          <form id="driverChatForm" class="flex gap-2">
-            <input type="text" id="driverChatMessageInput" required placeholder="Escribe un mensaje al comercio..." class="flex-1 border border-slate-200 px-3 py-2 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500" />
-            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm">Enviar</button>
-          </form>
-        </div>
+      <div class="bg-white rounded-2xl p-1.5 border border-slate-200/80 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <button type="button" id="btnTabAvailable" class="py-3 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 bg-slate-900 text-white shadow-sm">
+          <span>📢 Disponibles</span>
+          <span id="availableBadge" class="bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[10px]">0</span>
+        </button>
+        <button type="button" id="btnTabActive" class="py-3 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 bg-slate-100 text-slate-600 hover:bg-slate-200">
+          <span>🛵 Mis Carreras Activas</span>
+          <span id="activeBadge" class="hidden bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px] animate-pulse">0</span>
+        </button>
+        <button type="button" id="btnTabHistory" class="py-3 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 bg-slate-100 text-slate-600 hover:bg-slate-200">
+          <span>📜 Historial</span>
+          <span id="historyBadge" class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[10px]">0</span>
+        </button>
       </div>
 
-      <!-- PESTAÑAS FEED VS HISTORIAL -->
-      <div class="bg-white p-1.5 rounded-2xl border shadow-sm grid grid-cols-2 gap-2 text-xs font-bold">
-        <button type="button" id="tabFeed" class="py-2.5 rounded-xl bg-slate-900 text-white shadow-sm transition">📢 Feed de Carreras</button>
-        <button type="button" id="tabHistory" class="py-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition">📜 Mi Historial</button>
+      <!-- MÓDULO 1: DISPONIBLES -->
+      <div id="tabAvailable" class="space-y-3">
+        <div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">📢 Solicitudes Disponibles</h2>
+            <p class="text-xs text-slate-500">Acepta al precio sugerido o propón una contraoferta.</p>
+          </div>
+          <button type="button" id="btnRefreshAvailable" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl transition">🔄 Actualizar</button>
+        </div>
+        <div id="availableList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       </div>
 
-      <div id="feedSection" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-      <div id="historySection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <!-- MÓDULO 2: ACTIVAS -->
+      <div id="tabActive" class="hidden space-y-3">
+        <div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/80 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-900">🛵 Mis Carreras Activas</h2>
+            <p class="text-xs text-slate-500">Valida PINs, chatea con el comercio y finaliza entregas.</p>
+          </div>
+          <button type="button" id="btnRefreshActive" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl transition">🔄 Actualizar</button>
+        </div>
+        <div id="activeList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+
+      <!-- MÓDULO 3: HISTORIAL COMPLETO -->
+      <div id="tabHistory" class="hidden space-y-4">
+
+        <!-- Encabezado -->
+        <div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+          <div class="flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <h2 class="text-base font-black text-slate-900">📜 Historial de Carreras</h2>
+              <p class="text-xs text-slate-500">Análisis completo de tu actividad: entregas, ganancias y resoluciones de auditoría.</p>
+            </div>
+            <button type="button" id="btnRefreshHistory" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl transition">🔄 Actualizar</button>
+          </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="stat-card">
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Total entregas</p>
+            <p id="histStatTotal" class="text-2xl font-black text-slate-800 mt-1">0</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">Completadas con éxito</p>
+          </div>
+          <div class="stat-card bg-emerald-50/40 border-emerald-200">
+            <p class="text-[10px] font-black text-emerald-700 uppercase tracking-wider">💰 Ganancias</p>
+            <p id="histStatEarnings" class="text-2xl font-black text-emerald-700 mt-1">Q0.00</p>
+            <p class="text-[10px] text-emerald-600/70 mt-0.5">Suma de todas las tarifas</p>
+          </div>
+          <div class="stat-card bg-blue-50/40 border-blue-200">
+            <p class="text-[10px] font-black text-blue-700 uppercase tracking-wider">📊 Promedio</p>
+            <p id="histStatAvg" class="text-2xl font-black text-blue-700 mt-1">Q0.00</p>
+            <p class="text-[10px] text-blue-600/70 mt-0.5">Por viaje entregado</p>
+          </div>
+          <div class="stat-card bg-rose-50/40 border-rose-200">
+            <p class="text-[10px] font-black text-rose-700 uppercase tracking-wider">✅ Tasa de éxito</p>
+            <p id="histStatRate" class="text-2xl font-black text-rose-700 mt-1">—</p>
+            <p class="text-[10px] text-rose-600/70 mt-0.5">Entregadas vs. canceladas</p>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3 space-y-3">
+          <div class="flex flex-wrap gap-1.5" id="historyStatusFilters">
+            <button type="button" class="hist-filter-btn active" data-hist-status="all">Todo</button>
+            <button type="button" class="hist-filter-btn" data-hist-status="delivered">🟢 Entregadas</button>
+            <button type="button" class="hist-filter-btn" data-hist-status="cancelled">🔴 Canceladas</button>
+            <button type="button" class="hist-filter-btn" data-hist-status="audit">⚠️ En Auditoría</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+            <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider mr-1">Periodo:</span>
+            <button type="button" class="hist-filter-btn active" data-hist-time="all">Todo</button>
+            <button type="button" class="hist-filter-btn" data-hist-time="today">Hoy</button>
+            <button type="button" class="hist-filter-btn" data-hist-time="week">Esta semana</button>
+            <button type="button" class="hist-filter-btn" data-hist-time="month">Este mes</button>
+            <div class="flex-1 min-w-[180px] ml-auto">
+              <input type="text" id="historySearch" placeholder="🔍 Buscar tienda, cliente o dirección..."
+                class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista -->
+        <div id="historyList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
 
     </section>
   </main>
 
-  <!-- MODAL PIN RECOLECCIÓN (TIENDA) -->
-  <div id="pickupPinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-xs w-full p-6 space-y-4 border border-slate-100 text-center">
-      <div class="w-12 h-12 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center text-2xl mx-auto font-bold shadow-sm">📌</div>
+  <!-- MODAL CANCELACIÓN -->
+  <div id="cancelTripModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-slate-100 text-center">
+      <div class="w-12 h-12 bg-rose-100 text-rose-800 rounded-2xl flex items-center justify-center text-2xl mx-auto font-bold shadow-sm">🚫</div>
       <div>
-        <h3 class="font-black text-slate-900 text-sm">PIN de Recolección en Tienda</h3>
-        <p class="text-[11px] text-slate-500 mt-1">Solicita el PIN de 4 dígitos al encargado del comercio para confirmar que recogiste el paquete.</p>
+        <h3 class="font-black text-slate-900 text-sm">Cancelar Carrera</h3>
+        <p class="text-[11px] text-slate-500 mt-1">Indica el motivo obligatorio. Quedará en revisión de auditoría.</p>
       </div>
-      <input type="text" id="inputPickupPin" maxlength="4" placeholder="0000" class="w-full text-center text-2xl font-mono font-black tracking-widest border border-slate-300 p-2.5 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500 bg-slate-50" />
+      <input type="hidden" id="cancelRequestId" />
+      <input type="hidden" id="cancelStartedAt" />
+      <div class="text-left space-y-3">
+        <div>
+          <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Motivo Principal *</label>
+          <select id="cancelReasonSelect" class="w-full border border-slate-300 p-2.5 rounded-xl text-xs font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-rose-500">
+            <option value="No puedo llegar al punto de recolección">📍 No puedo llegar al punto de recolección</option>
+            <option value="Dirección del cliente errónea o inaccesible">🗺️ Dirección del cliente errónea o inaccesible</option>
+            <option value="Vehículo averiado / Problema mecánico">🔧 Vehículo averiado / Problema mecánico</option>
+            <option value="Cliente no responde">📵 Cliente no responde</option>
+            <option value="Comercio tardó demasiado en preparar">⏱️ Comercio tardó demasiado en preparar</option>
+            <option value="Otro motivo">💬 Otro motivo</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Explicación / Detalles *</label>
+          <textarea id="cancelNotesInput" rows="3" placeholder="Explica detalladamente la razón de la cancelación..." class="w-full border border-slate-300 p-2.5 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-slate-50 font-medium"></textarea>
+        </div>
+      </div>
       <div class="grid grid-cols-2 gap-2 pt-1">
-        <button type="button" onclick="document.getElementById('pickupPinModal').classList.add('hidden')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs">Cancelar</button>
-        <button type="button" id="btnConfirmPickupPin" class="bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow">Confirmar</button>
+        <button type="button" id="btnCancelModalClose" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs">Volver</button>
+        <button type="button" id="btnConfirmCancelTrip" class="bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow">Confirmar Cancelación</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL PIN ENTREGA (CLIENTE) -->
-  <div id="deliveryPinModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-xs w-full p-6 space-y-4 border border-slate-100 text-center">
-      <div class="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-2xl flex items-center justify-center text-2xl mx-auto font-bold shadow-sm">🔐</div>
+  <!-- MODAL CHAT -->
+  <div id="driverChatModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-5 space-y-3 border border-slate-100 flex flex-col h-[520px]">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">💬</span>
+          <div>
+            <h3 class="font-black text-slate-900 text-sm">Chat con el Comercio</h3>
+            <p id="chatStoreName" class="text-[11px] font-bold text-emerald-600">Comercio</p>
+          </div>
+        </div>
+        <button id="closeDriverChatBtn" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 w-7 h-7 rounded-full font-bold text-xs">✕</button>
+      </div>
+      <div id="driverChatMessages" class="flex-1 overflow-y-auto space-y-2 p-2 bg-slate-50 rounded-2xl border border-slate-100 text-xs">
+        <p class="text-center text-slate-400 py-4 font-medium">Inicia la conversación con el comercio...</p>
+      </div>
+      <form id="driverChatForm" class="flex gap-2 pt-2 border-t border-slate-100 flex-shrink-0">
+        <input type="hidden" id="chatRequestId" />
+        <input type="text" id="driverChatMessageInput" required placeholder="Escribe un mensaje al comercio..." class="flex-1 border border-slate-200 px-3 py-2 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500" />
+        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition">Enviar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL VALIDACIÓN DE PIN -->
+  <div id="pinValidateModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-slate-100 text-center">
+      <div class="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-2xl flex items-center justify-center text-2xl mx-auto font-bold">🔑</div>
       <div>
-        <h3 class="font-black text-slate-900 text-sm">PIN de Recepción del Cliente</h3>
-        <p class="text-[11px] text-slate-500 mt-1">Pide al cliente su PIN de 4 dígitos para completar la entrega de forma segura.</p>
+        <h3 id="pinValidateTitle" class="font-black text-slate-900 text-sm">Validar PIN</h3>
+        <p id="pinValidateDesc" class="text-[11px] text-slate-500 mt-1">Solicita el PIN al comercio o al cliente para avanzar.</p>
       </div>
-      <input type="text" id="inputDeliveryPin" maxlength="4" placeholder="0000" class="w-full text-center text-2xl font-mono font-black tracking-widest border border-slate-300 p-2.5 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50" />
-      <div class="grid grid-cols-2 gap-2 pt-1">
-        <button type="button" onclick="document.getElementById('deliveryPinModal').classList.add('hidden')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs">Cancelar</button>
-        <button type="button" id="btnConfirmDeliveryPin" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow">Entregar</button>
+      <input type="hidden" id="pinValidateRequestId" />
+      <input type="hidden" id="pinValidateStep" />
+      <input type="text" id="pinValidateInput" maxlength="4" inputmode="numeric" placeholder="••••" class="w-full text-center text-2xl font-black tracking-[0.5em] border-2 border-slate-200 p-3 rounded-2xl outline-none focus:border-emerald-500 bg-slate-50" />
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" id="btnPinCancel" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs">Cancelar</button>
+        <button type="button" id="btnPinConfirm" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow">Validar PIN</button>
       </div>
-    </div>
-  </div>
-
-  <!-- MODAL QUICK VIEW TIENDA -->
-  <div id="storeQuickViewModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-slate-100 relative">
-      <button id="closeStoreQuickViewBtn" type="button" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-700 w-8 h-8 rounded-full font-bold flex items-center justify-center text-xs">✕</button>
-      <div class="text-center space-y-2">
-        <img id="quickStoreLogo" src="../img/placeholder.png" alt="Logo Tienda" class="w-16 h-16 rounded-2xl object-cover mx-auto border-2 border-slate-200 shadow-sm" />
-        <h3 id="quickStoreName" class="font-black text-slate-900 text-base">Nombre Tienda</h3>
-        <span id="quickStoreRatingStars" class="inline-block bg-amber-50 text-amber-800 text-xs font-black px-3 py-1 rounded-full border border-amber-200">⭐ 5.0 (0 pedidos)</span>
-      </div>
-      <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
-        <div class="flex justify-between border-b pb-1">
-          <span class="text-slate-500 font-medium">📍 Ubicación (Zona):</span>
-          <span id="quickStoreZone" class="font-bold text-slate-800">—</span>
-        </div>
-        <div class="flex justify-between border-b pb-1">
-          <span class="text-slate-500 font-medium">📱 WhatsApp:</span>
-          <span id="quickStoreWa" class="font-bold text-slate-800">—</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500 font-medium">📦 Pedidos Despachados:</span>
-          <span id="quickStoreOrdersCount" class="font-bold text-slate-800">—</span>
-        </div>
-      </div>
-      <button type="button" onclick="document.getElementById('storeQuickViewModal').classList.add('hidden')" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm">Cerrar</button>
-    </div>
-  </div>
-
-  <!-- MODAL CALIFICAR TIENDA POR EL PILOTO -->
-  <div id="rateStoreModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 border border-slate-100 relative">
-      <button id="closeRateStoreBtn" type="button" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-700 w-7 h-7 rounded-full font-bold text-xs">✕</button>
-      <div class="flex items-center gap-2 border-b pb-3">
-        <span class="text-xl">⭐</span>
-        <h3 class="font-black text-slate-900 text-sm">Calificar Atención del Comercio</h3>
-      </div>
-      <input type="hidden" id="rateStoreReqId" />
-      <p id="rateStoreName" class="text-xs font-bold text-slate-700 text-center">Tienda: —</p>
-      
-      <div class="flex justify-center gap-2 text-3xl cursor-pointer py-1" id="storeStarRatingContainer">
-        <span data-star="1" class="store-star transition-transform hover:scale-125">⭐</span>
-        <span data-star="2" class="store-star transition-transform hover:scale-125">⭐</span>
-        <span data-star="3" class="store-star transition-transform hover:scale-125">⭐</span>
-        <span data-star="4" class="store-star transition-transform hover:scale-125">⭐</span>
-        <span data-star="5" class="store-star transition-transform hover:scale-125">⭐</span>
-      </div>
-      <input type="hidden" id="selectedStoreScore" value="5" />
-      
-      <div>
-        <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Comentario u Observaciones (Opcional)</label>
-        <textarea id="rateStoreComment" rows="2" placeholder="Ej. Paquete empacado a tiempo, buen trato..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
-      </div>
-      
-      <button type="button" id="btnSubmitStoreRating" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs transition shadow">
-        💾 Guardar Calificación de Tienda
-      </button>
     </div>
   </div>
 
   <script>
-    let currentUser = null, currentDriver = null, requests = [], activeReq = null, chatSub = null;
+    let currentUser = null;
+    let currentDriver = null;
+    let allRequests = [];
+    let activeTab = 'available';
+    let chatChannel = null;
+    let realtimeRequestsChannel = null;
+    let realtimeDriverChannel = null;
+
+    // Estado de filtros del historial
+    let historyStatusFilter = 'all';
+    let historyTimeFilter = 'all';
+    let historySearchTerm = '';
 
     (async () => {
-      try {
-        const session = await requireAuth();
-        if (!session) return;
-        currentUser = session.user;
+      const session = await requireAuth();
+      if (!session) return;
+      currentUser = session.user;
 
-        await initDashboardNav({ user: currentUser });
-        await loadDriver();
-        document.getElementById('loadingState').classList.add('hidden');
-        document.getElementById('content').classList.remove('hidden');
+      await initDashboardNav({ user: currentUser });
 
-        setupTabs();
-        setupChat();
-        setupPinValidationEvents();
-        setupStoreRatingEvents();
-        if (document.getElementById('closeStoreQuickViewBtn')) {
-          document.getElementById('closeStoreQuickViewBtn').onclick = () => document.getElementById('storeQuickViewModal').classList.add('hidden');
-        }
-        await fetchAll();
-        listenGlobal();
-      } catch (e) { console.error(e); }
+      const client = window._supabase || initSupabaseClient();
+
+      const { data: driverData } = await client
+        .from('delivery_drivers').select('*').eq('user_id', currentUser.id).maybeSingle();
+
+      if (!driverData) {
+        const { data: created } = await client.from('delivery_drivers').insert([{
+          user_id: currentUser.id,
+          full_name: currentUser.email?.split('@')[0] || 'Piloto',
+          is_available: false,
+          is_verified: false
+        }]).select().single();
+        currentDriver = created || null;
+      } else {
+        currentDriver = driverData;
+      }
+
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+
+      applySuspensionState();
+      updateOnlineBtn();
+      bindTabs();
+      bindCancelModal();
+      bindPinModal();
+      bindChat();
+      bindRefreshButtons();
+      bindHistoryFilters();
+
+      await loadAllRequests();
+      subscribeRealtime();
+      subscribeDriverSuspension();
     })();
 
-    async function loadDriver() {
-      const client = window._supabase || initSupabaseClient();
-      let { data } = await client.from('delivery_drivers').select('*').eq('user_id', currentUser.id).maybeSingle();
-      if (!data) {
-        const { data: newD } = await client.from('delivery_drivers').upsert([{ user_id: currentUser.id, is_available: true, full_name: currentUser.email }]).select().single();
-        data = newD;
-      }
-      currentDriver = data;
+    // =========================================================
+    // Suspensión
+    // =========================================================
+    function isPilotSuspended() {
+      if (!currentDriver || !currentDriver.suspended_until) return false;
+      const until = new Date(currentDriver.suspended_until).getTime();
+      return Number.isFinite(until) && until > Date.now();
     }
 
-    function setupTabs() {
-      const f = document.getElementById('feedSection'), h = document.getElementById('historySection');
-      const bF = document.getElementById('tabFeed'), bH = document.getElementById('tabHistory');
-
-      bF.onclick = () => { f.classList.remove('hidden'); h.classList.add('hidden'); bF.className = 'py-2.5 rounded-xl bg-slate-900 text-white shadow-sm transition'; bH.className = 'py-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition'; };
-      bH.onclick = () => { h.classList.remove('hidden'); f.classList.add('hidden'); bH.className = 'py-2.5 rounded-xl bg-slate-900 text-white shadow-sm transition'; bF.className = 'py-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition'; };
+    function formatSuspensionDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      const date = d.toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const time = d.toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return `${date}, ${time}`;
     }
 
-    async function fetchAll() {
-      const client = window._supabase || initSupabaseClient();
-      const { data } = await client.from('delivery_requests').select('*').order('created_at', { ascending: false });
-      
-      const rawRequests = data || [];
-      const storeIds = [...new Set(rawRequests.map(r => r.store_id).filter(Boolean))];
-      let storesMap = {};
-      if (storeIds.length > 0) {
-        const { data: storesData } = await client.from('stores').select('id, name, zone, address, logo_url, whatsapp').in('id', storeIds);
-        (storesData || []).forEach(s => { storesMap[s.id] = s; });
-      }
+    function applySuspensionState() {
+      const banner = document.getElementById('suspensionBanner');
+      const dateEl = document.getElementById('suspensionDate');
+      const body = document.body;
 
-      requests = rawRequests.map(r => ({
-        ...r,
-        store: storesMap[r.store_id] || { name: 'Comercio' }
-      }));
+      if (isPilotSuspended()) {
+        body.classList.add('is-suspended');
+        banner.classList.remove('hidden');
+        dateEl.textContent = formatSuspensionDate(currentDriver.suspended_until);
 
-      activeReq = requests.find(r => String(r.driver_id) === String(currentDriver?.id) && ['accepted', 'in_transit', 'on_the_way', 'counter_offered'].includes(r.status));
-      renderActive();
-      renderFeed();
-      renderHistory();
-    }
-
-    function renderActive() {
-      const sec = document.getElementById('activeDeliverySection');
-      const card = document.getElementById('activeCard');
-      const badge = document.getElementById('activeStatusBadge');
-      if (!activeReq) { sec.classList.add('hidden'); return; }
-
-      sec.classList.remove('hidden');
-      badge.textContent = (activeReq.status || 'ACTIVO').toUpperCase();
-
-      let actionButtons = '';
-      if (['accepted', 'pending', 'counter_offered'].includes(activeReq.status)) {
-        actionButtons = `
-          <button type="button" onclick="openPickupPinModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
-            <span>📌 Iniciar Ruta (Ingresar PIN Recolección)</span>
-          </button>`;
-      } else {
-        actionButtons = `
-          <button type="button" onclick="openDeliveryPinModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
-            <span>🔐 Finalizar Entrega (Ingresar PIN Cliente)</span>
-          </button>`;
-      }
-
-      const storeName = activeReq.store?.name || 'Comercio';
-
-      card.innerHTML = `
-        <div class="flex justify-between items-start border-b pb-3">
-          <div>
-            <div class="flex items-center gap-2">
-              <p class="font-extrabold text-sm text-slate-900">🏪 ${dashEscapeHtml(storeName)}</p>
-              ${activeReq.store_id ? `<button type="button" onclick="openStoreQuickView('${activeReq.store_id}')" class="text-[10px] font-black bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-lg border transition">🔍 Ver Tienda</button>` : ''}
-            </div>
-            <p class="text-slate-600 mt-1">📍 Origen: <span class="font-bold text-slate-800">${dashEscapeHtml(activeReq.origin_address || 'Tienda')}</span></p>
-            <p class="text-slate-600">📍 Destino: <span class="font-bold text-slate-800">${dashEscapeHtml(activeReq.destination_address || 'Cliente')}</span></p>
-          </div>
-          <span class="font-black text-emerald-600 text-base bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">Q${parseFloat(activeReq.final_fee || activeReq.suggested_fee || 15).toFixed(2)}</span>
-        </div>
-        <div class="pt-1">
-          ${actionButtons}
-        </div>
-      `;
-
-      fetchDriverChat(activeReq.id);
-      subscribeDriverChat(activeReq.id);
-    }
-
-    function renderFeed() {
-      const container = document.getElementById('feedSection');
-      const driverId = currentDriver?.id;
-
-      const pendings = requests.filter(r => {
-        if (r.status !== 'pending') return false;
-        const rejected = Array.isArray(r.rejected_driver_ids) ? r.rejected_driver_ids : [];
-        if (driverId && rejected.includes(driverId)) return false;
-        if (r.assignment_type === 'direct') return String(r.target_driver_id) === String(driverId);
-        return true;
-      });
-
-      if (pendings.length === 0) {
-        container.innerHTML = `<div class="col-span-full bg-white p-8 rounded-2xl text-center text-xs text-slate-400 border border-slate-200/80 shadow-sm">Sin solicitudes pendientes en el feed.</div>`;
-        return;
-      }
-
-      container.innerHTML = pendings.map(r => `
-        <article class="bg-white p-4 rounded-2xl border border-slate-200/80 space-y-3 shadow-sm flex flex-col justify-between">
-          <div class="space-y-2 border-b pb-3">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-1.5">
-                <p class="font-extrabold text-xs text-slate-900">🏪 ${dashEscapeHtml(r.store?.name || 'Comercio')}</p>
-                ${r.store_id ? `<button type="button" onclick="openStoreQuickView('${r.store_id}')" class="text-[10px] font-black bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded-lg transition border">🔍 Ver Tienda</button>` : ''}
-              </div>
-              <span class="text-xs font-black bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg">Q${parseFloat(r.suggested_fee || 15).toFixed(2)}</span>
-            </div>
-            <p class="text-xs text-slate-700">📍 Origen: ${dashEscapeHtml(r.origin_address || 'Tienda')}</p>
-            <p class="text-xs text-slate-700 font-bold">📍 Destino: ${dashEscapeHtml(r.destination_address || 'Cliente')}</p>
-          </div>
-          <div class="flex gap-2 pt-1">
-            <input type="number" step="0.50" id="fee_${r.id}" value="${r.suggested_fee || 15}" class="w-20 border border-slate-200 px-2.5 py-1.5 text-xs rounded-xl font-bold bg-slate-50 text-slate-800 text-center" />
-            <button type="button" onclick="acceptFee('${r.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs flex-1 transition shadow-sm">Aceptar</button>
-            <button type="button" onclick="counterFee('${r.id}')" class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs transition shadow-sm">Contraoferta</button>
-          </div>
-        </article>
-      `).join('');
-    }
-
-    function renderHistory() {
-      const container = document.getElementById('historySection');
-      const history = requests.filter(r => String(r.driver_id) === String(currentDriver?.id) && ['delivered', 'completed'].includes(r.status));
-
-      if (history.length === 0) {
-        container.innerHTML = `<div class="col-span-full bg-white p-8 rounded-2xl text-center text-xs text-slate-400 border border-slate-200/80 shadow-sm">Sin entregas en el historial.</div>`;
-        return;
-      }
-
-      container.innerHTML = history.map(r => `
-        <article class="bg-white p-4 rounded-2xl border border-slate-200/80 text-xs flex justify-between items-center shadow-sm">
-          <div>
-            <div class="flex items-center gap-1.5">
-              <p class="font-bold text-slate-900">📍 ${dashEscapeHtml(r.destination_address || 'Destino')}</p>
-              ${r.store_id ? `<button type="button" onclick="openStoreQuickView('${r.store_id}')" class="text-[10px] font-black text-blue-600 hover:underline">🔍 Ver Tienda</button>` : ''}
-            </div>
-            <p class="text-[10px] text-slate-500 mt-0.5">🏪 ${dashEscapeHtml(r.store?.name || 'Comercio')}</p>
-          </div>
-          <span class="text-emerald-600 font-black text-sm bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">Q${parseFloat(r.final_fee || r.suggested_fee || 0).toFixed(2)}</span>
-        </article>
-      `).join('');
-    }
-
-    // VALIDACIÓN DE PINS
-    function setupPinValidationEvents() {
-      document.getElementById('btnConfirmPickupPin').onclick = async () => {
-        const inputPin = document.getElementById('inputPickupPin').value.trim();
-        if (!activeReq) return;
-
-        if (inputPin !== String(activeReq.pickup_pin || '').trim()) {
-          alert('❌ PIN de Recolección incorrecto. Solicítalo al vendedor en tienda.');
-          return;
-        }
-
-        const client = window._supabase || initSupabaseClient();
-        await client.from('delivery_requests').update({ status: 'in_transit', updated_at: new Date().toISOString() }).eq('id', activeReq.id);
-        if (activeReq.order_id) {
-          await client.from('cart_orders').update({ status: 'on_the_way', status_updated_at: new Date().toISOString() }).eq('id', activeReq.order_id);
-        }
-
-        document.getElementById('pickupPinModal').classList.add('hidden');
-        document.getElementById('inputPickupPin').value = '';
-        alert('✅ ¡PIN de Recolección confirmado! La carrera cambió a "En Ruta".');
-        await fetchAll();
-      };
-
-      document.getElementById('btnConfirmDeliveryPin').onclick = async () => {
-        const inputPin = document.getElementById('inputDeliveryPin').value.trim();
-        if (!activeReq) return;
-
-        if (inputPin !== String(activeReq.delivery_pin || '').trim()) {
-          alert('❌ PIN del Cliente incorrecto. Solicita al cliente su PIN de recepción.');
-          return;
-        }
-
-        const client = window._supabase || initSupabaseClient();
-        await client.from('delivery_requests').update({ status: 'delivered', updated_at: new Date().toISOString() }).eq('id', activeReq.id);
-        if (activeReq.order_id) {
-          await client.from('cart_orders').update({ status: 'completed', status_updated_at: new Date().toISOString() }).eq('id', activeReq.order_id);
-        }
-
-        const currentReqId = activeReq.id;
-        const currentStoreName = activeReq.store?.name || 'Comercio';
-
-        document.getElementById('deliveryPinModal').classList.add('hidden');
-        document.getElementById('inputDeliveryPin').value = '';
-        
-        await fetchAll();
-
-        openRateStoreModal(currentReqId, currentStoreName);
-      };
-    }
-
-    function openPickupPinModal() {
-      document.getElementById('inputPickupPin').value = '';
-      document.getElementById('pickupPinModal').classList.remove('hidden');
-    }
-
-    function openDeliveryPinModal() {
-      document.getElementById('inputDeliveryPin').value = '';
-      document.getElementById('deliveryPinModal').classList.remove('hidden');
-    }
-
-    // QUICK VIEW TIENDA
-    async function openStoreQuickView(storeId) {
-      if (!storeId) return;
-      const client = window._supabase || initSupabaseClient();
-      const modal = document.getElementById('storeQuickViewModal');
-
-      const { data: store } = await client.from('stores').select('*').eq('id', storeId).maybeSingle();
-      if (!store) {
-        alert('No se encontraron detalles del comercio.');
-        return;
-      }
-
-      const { data: storeDelivs } = await client.from('delivery_requests').select('seller_rating, status').eq('store_id', storeId);
-      
-      const validRatings = (storeDelivs || []).filter(r => r.seller_rating > 0);
-      const avgRating = validRatings.length > 0
-        ? (validRatings.reduce((acc, curr) => acc + parseFloat(curr.seller_rating), 0) / validRatings.length).toFixed(1)
-        : '5.0';
-      const completedCount = (storeDelivs || []).filter(r => ['delivered', 'completed'].includes(r.status)).length;
-
-      document.getElementById('quickStoreLogo').src = store.logo_url || '../img/placeholder.png';
-      document.getElementById('quickStoreName').textContent = store.name || 'Comercio Local';
-      document.getElementById('quickStoreRatingStars').textContent = `⭐ ${avgRating} (${completedCount} despachos)`;
-      document.getElementById('quickStoreZone').textContent = store.zone ? `Zona ${store.zone}` : (store.address || 'Quetzaltenango');
-      document.getElementById('quickStoreWa').textContent = store.whatsapp || 'N/A';
-      document.getElementById('quickStoreOrdersCount').textContent = `${completedCount} pedidos entregados`;
-
-      modal.classList.remove('hidden');
-    }
-
-    // CALIFICACIÓN A TIENDA
-    function setupStoreRatingEvents() {
-      const closeBtn = document.getElementById('closeRateStoreBtn');
-      if (closeBtn) closeBtn.onclick = () => document.getElementById('rateStoreModal').classList.add('hidden');
-
-      const stars = document.querySelectorAll('#storeStarRatingContainer .store-star');
-      stars.forEach(s => {
-        s.onclick = () => {
-          const val = parseInt(s.dataset.star, 10);
-          document.getElementById('selectedStoreScore').value = val;
-          updateStoreStarUI(val);
-        };
-      });
-
-      const submitBtn = document.getElementById('btnSubmitStoreRating');
-      if (submitBtn) {
-        submitBtn.onclick = async () => {
-          const reqId = document.getElementById('rateStoreReqId').value;
-          const score = parseInt(document.getElementById('selectedStoreScore').value, 10);
+        if (currentDriver.is_available) {
           const client = window._supabase || initSupabaseClient();
-
-          const { error } = await client.from('delivery_requests').update({
-            seller_rating: score,
-            updated_at: new Date().toISOString()
-          }).eq('id', reqId);
-
-          if (error) {
-            alert('Error al guardar la calificación: ' + error.message);
-          } else {
-            alert('¡Calificación guardada con éxito! ⭐');
-            document.getElementById('rateStoreModal').classList.add('hidden');
-            await fetchAll();
-          }
-        };
+          client.from('delivery_drivers')
+            .update({ is_available: false, updated_at: new Date().toISOString() })
+            .eq('id', currentDriver.id)
+            .then(() => { currentDriver.is_available = false; updateOnlineBtn(); });
+        }
+      } else {
+        body.classList.remove('is-suspended');
+        banner.classList.add('hidden');
       }
     }
 
-    function updateStoreStarUI(score) {
-      const stars = document.querySelectorAll('#storeStarRatingContainer .store-star');
-      stars.forEach((s, idx) => {
-        s.style.opacity = (idx < score) ? '1' : '0.3';
+    function updateOnlineBtn() {
+      const btn = document.getElementById('btnToggleOnline');
+      if (!btn || !currentDriver) return;
+      const suspended = isPilotSuspended();
+
+      if (suspended) {
+        btn.textContent = '🔒 Suspendido';
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-black transition shadow-sm bg-red-500 text-white opacity-70 cursor-not-allowed';
+        btn.disabled = true; btn.onclick = null;
+        return;
+      }
+
+      btn.disabled = false;
+      if (currentDriver.is_available) {
+        btn.textContent = '🟢 Disponible';
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-black transition shadow-sm bg-emerald-500 text-white';
+      } else {
+        btn.textContent = '⚪ Offline';
+        btn.className = 'px-3 py-1.5 rounded-lg text-xs font-black transition shadow-sm bg-slate-300 text-slate-600';
+      }
+
+      btn.onclick = async () => {
+        if (isPilotSuspended()) { alert('⛔ Tu perfil está suspendido temporalmente.'); return; }
+        const newState = !currentDriver.is_available;
+        const client = window._supabase || initSupabaseClient();
+        const { error } = await client.from('delivery_drivers')
+          .update({ is_available: newState, updated_at: new Date().toISOString() })
+          .eq('id', currentDriver.id);
+        if (error) { alert('Error: ' + error.message); return; }
+        currentDriver.is_available = newState;
+        updateOnlineBtn();
+      };
+    }
+
+    // =========================================================
+    // Tabs
+    // =========================================================
+    function bindTabs() {
+      const tabConfig = [
+        { key: 'available', btnId: 'btnTabAvailable', paneId: 'tabAvailable' },
+        { key: 'active',    btnId: 'btnTabActive',    paneId: 'tabActive'    },
+        { key: 'history',   btnId: 'btnTabHistory',   paneId: 'tabHistory'   }
+      ];
+
+      const BTN_IDLE   = 'py-3 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 bg-slate-100 text-slate-600 hover:bg-slate-200';
+      const BTN_ACTIVE = 'py-3 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 bg-slate-900 text-white shadow-sm';
+
+      function activateTab(tabKey) {
+        activeTab = tabKey;
+        tabConfig.forEach(cfg => {
+          const btnEl  = document.getElementById(cfg.btnId);
+          const paneEl = document.getElementById(cfg.paneId);
+          if (btnEl)  btnEl.className = (cfg.key === tabKey) ? BTN_ACTIVE : BTN_IDLE;
+          if (paneEl) paneEl.classList.toggle('hidden', cfg.key !== tabKey);
+        });
+        if (typeof loadAllRequests === 'function') loadAllRequests();
+      }
+
+      tabConfig.forEach(cfg => {
+        const btn = document.getElementById(cfg.btnId);
+        if (!btn) return;
+        btn.addEventListener('click', (e) => { e.preventDefault(); activateTab(cfg.key); });
       });
     }
 
-    function openRateStoreModal(requestId, storeName) {
-      document.getElementById('rateStoreReqId').value = requestId;
-      document.getElementById('rateStoreName').textContent = `Tienda: ${storeName || 'Comercio'}`;
-      document.getElementById('rateStoreComment').value = '';
-      document.getElementById('selectedStoreScore').value = '5';
-      updateStoreStarUI(5);
-
-      document.getElementById('rateStoreModal').classList.remove('hidden');
+    function bindRefreshButtons() {
+      const refreshAll = () => loadAllRequests();
+      document.getElementById('btnRefreshAvailable')?.addEventListener('click', refreshAll);
+      document.getElementById('btnRefreshActive')?.addEventListener('click', refreshAll);
+      document.getElementById('btnRefreshHistory')?.addEventListener('click', refreshAll);
     }
 
-    async function acceptFee(id) {
-      const fee = parseFloat(document.getElementById(`fee_${id}`).value) || 15;
+    function bindHistoryFilters() {
+      document.querySelectorAll('#historyStatusFilters [data-hist-status]').forEach(btn => {
+        btn.onclick = () => {
+          historyStatusFilter = btn.dataset.histStatus;
+          document.querySelectorAll('#historyStatusFilters [data-hist-status]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          renderHistorySection();
+        };
+      });
+      document.querySelectorAll('[data-hist-time]').forEach(btn => {
+        btn.onclick = () => {
+          historyTimeFilter = btn.dataset.histTime;
+          document.querySelectorAll('[data-hist-time]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          renderHistorySection();
+        };
+      });
+      const searchEl = document.getElementById('historySearch');
+      if (searchEl) {
+        searchEl.addEventListener('input', () => {
+          historySearchTerm = searchEl.value.trim().toLowerCase();
+          renderHistorySection();
+        });
+      }
+    }
+
+    // =========================================================
+    // Carga
+    // =========================================================
+    async function loadAllRequests() {
+      if (!currentDriver) return;
       const client = window._supabase || initSupabaseClient();
-      await client.from('delivery_requests').update({ driver_id: currentDriver.id, final_fee: fee, status: 'accepted', updated_at: new Date().toISOString() }).eq('id', id);
-      await fetchAll();
+
+      const { data, error } = await client
+        .from('delivery_requests')
+        .select('*, stores(id, name, whatsapp, address, zone)')
+        .order('created_at', { ascending: false });
+
+      if (error) { console.error('[Delivery] load:', error); return; }
+
+      allRequests = (data || []).map(r => ({ ...r, _isMine: r.driver_id === currentDriver.id }));
+
+      const available = allRequests.filter(r =>
+        r.status === 'pending' &&
+        (!r.assignment_type || r.assignment_type === 'broadcast') &&
+        (!r.target_driver_id || r.target_driver_id === currentDriver.id) &&
+        !(Array.isArray(r.rejected_driver_ids) && r.rejected_driver_ids.includes(currentDriver.id))
+      );
+
+      const active = allRequests.filter(r =>
+        r._isMine && ['accepted', 'in_transit', 'on_the_way'].includes(r.status)
+      );
+
+      const history = allRequests.filter(r =>
+        r._isMine && ['delivered', 'completed', 'cancelled', 'cancelled_pending_review', 'rejected', 'revoked'].includes(r.status)
+      );
+
+      document.getElementById('availableBadge').textContent = available.length;
+      const activeBadge = document.getElementById('activeBadge');
+      if (active.length > 0) { activeBadge.textContent = active.length; activeBadge.classList.remove('hidden'); }
+      else activeBadge.classList.add('hidden');
+      document.getElementById('historyBadge').textContent = history.length;
+
+      renderAvailable(available);
+      renderActive(active);
+      renderHistorySection();
     }
 
-    async function counterFee(id) {
-      const fee = parseFloat(document.getElementById(`fee_${id}`).value) || 15;
+    function esc(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function fmtDateTime(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      const date = d.toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const time = d.toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return `${date} · ${time}`;
+    }
+
+    function fmtDuration(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) return '—';
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      if (m >= 60) {
+        const h = Math.floor(m / 60);
+        return `${h}h ${m % 60}m`;
+      }
+      return `${m}m ${s}s`;
+    }
+
+    // =========================================================
+    // MÓDULO 1: Disponibles
+    // =========================================================
+    function renderAvailable(list) {
+      const container = document.getElementById('availableList');
+      const suspended = isPilotSuspended();
+
+      if (!list.length) {
+        container.innerHTML = `
+          <div class="col-span-full bg-white rounded-2xl p-12 text-center border border-slate-200/80 shadow-sm">
+            <p class="text-3xl mb-2">🛵</p>
+            <p class="text-xs font-bold text-slate-500">No hay solicitudes disponibles en este momento.</p>
+            <p class="text-[11px] text-slate-400 mt-1">Actívate como disponible y espera nuevas carreras.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(r => {
+        const suggested = parseFloat(r.suggested_fee || r.fee || 15).toFixed(2);
+        const lockClass = suspended ? 'btn-action-locked' : '';
+        const lockTitle = suspended ? 'title="⛔ Perfil suspendido"' : '';
+
+        // Badge especial si es delivery externo (sin pedido del catálogo)
+        const manualBadge = (!r.order_id) ? `
+          <span class="text-[9px] font-black bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full border border-indigo-200">🎯 DIRECTO</span>
+        ` : '';
+
+        return `
+          <article class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3">
+            <div class="flex items-start justify-between border-b border-slate-100 pb-3 gap-2">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <p class="font-black text-sm text-slate-900 truncate">🏪 ${esc(r.stores?.name || 'Comercio')}</p>
+                  ${manualBadge}
+                </div>
+                <p class="text-[10px] font-mono text-slate-400 mt-0.5">#${esc(String(r.id).slice(0, 8).toUpperCase())}</p>
+                <p class="text-[11px] text-slate-500 mt-1">📅 ${fmtDateTime(r.created_at)}</p>
+              </div>
+              <span class="text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-1 rounded-full uppercase flex-shrink-0">pendiente</span>
+            </div>
+
+            <div class="space-y-1.5 text-xs">
+              <p class="flex items-start gap-1.5"><span>📍</span><span class="font-semibold text-slate-700">${esc(r.origin_address || 'Tienda')}</span></p>
+              <p class="flex items-start gap-1.5"><span>🎯</span><span class="font-semibold text-slate-700">${esc(r.destination_address || 'Cliente')}</span></p>
+              ${r.customer_name ? `<p class="flex items-start gap-1.5"><span>👤</span><span class="text-slate-700">${esc(r.customer_name)}</span></p>` : ''}
+              ${r.notes ? `<p class="flex items-start gap-1.5 text-slate-500 italic"><span>📝</span><span>${esc(r.notes)}</span></p>` : ''}
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
+              <label class="block text-[10px] font-black text-emerald-800 uppercase">Tu tarifa de cobro (Q):</label>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-black text-emerald-700">Q</span>
+                <input type="number" min="0" step="0.50" value="${suggested}" data-fee-input="${r.id}" ${suspended ? 'disabled' : ''}
+                  class="flex-1 border border-emerald-300 px-3 py-2 rounded-xl text-sm font-black text-emerald-700 bg-white outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50" />
+              </div>
+              <p class="text-[10px] text-emerald-700 leading-tight">
+                💡 Sugerida: <strong>Q${suggested}</strong>. Si cambias el monto se envía como <strong>contraoferta</strong>.
+              </p>
+            </div>
+
+            <button type="button" data-action="accept-request" data-id="${r.id}" data-suggested="${suggested}"
+              class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow-sm ${lockClass}" ${lockTitle}>
+              ${suspended ? '⛔ Suspendido' : '✅ Aceptar / Enviar'}
+            </button>
+          </article>`;
+      }).join('');
+
+      if (!suspended) {
+        container.querySelectorAll('[data-action="accept-request"]').forEach(btn => {
+          btn.onclick = () => handleAcceptRequest(btn.dataset.id, parseFloat(btn.dataset.suggested));
+        });
+      }
+    }
+
+    async function handleAcceptRequest(requestId, suggestedFee) {
+      if (isPilotSuspended()) { alert('⛔ Tu perfil está suspendido temporalmente.'); return; }
+
+      const input = document.querySelector(`[data-fee-input="${requestId}"]`);
+      if (!input) return;
+      const entered = parseFloat(input.value);
+      if (isNaN(entered) || entered < 0) { alert('Ingresa un monto válido.'); return; }
+
       const client = window._supabase || initSupabaseClient();
-      await client.from('delivery_requests').update({ driver_id: currentDriver.id, counter_fee: fee, status: 'counter_offered', updated_at: new Date().toISOString() }).eq('id', id);
-      await fetchAll();
+      const isExact = Math.abs(entered - suggestedFee) < 0.01;
+
+      if (isExact) {
+        if (!confirm(`¿Aceptar la carrera por Q${entered.toFixed(2)}?`)) return;
+        const { error } = await client.from('delivery_requests').update({
+          driver_id: currentDriver.id, final_fee: entered, status: 'accepted',
+          updated_at: new Date().toISOString()
+        }).eq('id', requestId);
+        if (error) { alert('Error: ' + error.message); return; }
+        alert('✅ ¡Carrera aceptada!');
+      } else {
+        if (!confirm(`Tarifa sugerida: Q${suggestedFee.toFixed(2)}.\n¿Enviar contraoferta de Q${entered.toFixed(2)}?`)) return;
+        const { error } = await client.from('delivery_requests').update({
+          driver_id: currentDriver.id, counter_fee: entered, status: 'counter_offered',
+          updated_at: new Date().toISOString()
+        }).eq('id', requestId);
+        if (error) { alert('Error: ' + error.message); return; }
+        alert('🔄 Contraoferta enviada.');
+      }
+
+      if (window.__pasajeRefreshDashBadges) window.__pasajeRefreshDashBadges();
+      await loadAllRequests();
     }
 
-    function setupChat() {
+    // =========================================================
+    // MÓDULO 2: Activas
+    // =========================================================
+    function renderActive(list) {
+      const container = document.getElementById('activeList');
+      if (!list.length) {
+        container.innerHTML = `
+          <div class="col-span-full bg-white rounded-2xl p-12 text-center border border-slate-200/80 shadow-sm">
+            <p class="text-3xl mb-2">🛵</p>
+            <p class="text-xs font-bold text-slate-500">No tienes carreras activas.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(r => {
+        const fee = parseFloat(r.final_fee || r.counter_fee || r.suggested_fee || 0).toFixed(2);
+        const isPickupStep = r.status === 'accepted';
+
+        const pinBox = isPickupStep ? `
+          <div class="bg-amber-50 border border-amber-300 rounded-xl p-3 space-y-1">
+            <div class="flex items-center gap-2"><span class="text-lg">📌</span>
+              <span class="text-[11px] font-black text-amber-900 uppercase tracking-wide">Recolección pendiente</span></div>
+            <p class="text-[11px] text-amber-800 leading-snug">Al llegar al comercio, <strong>pide el PIN de 4 dígitos</strong> al encargado y valídalo aquí.</p>
+          </div>
+        ` : `
+          <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-3 space-y-1">
+            <div class="flex items-center gap-2"><span class="text-lg">🔑</span>
+              <span class="text-[11px] font-black text-emerald-900 uppercase tracking-wide">Entrega en curso</span></div>
+            <p class="text-[11px] text-emerald-800 leading-snug">Al entregar al cliente, <strong>pide su PIN de 4 dígitos</strong> y valídalo para cerrar la carrera.</p>
+          </div>
+        `;
+
+        return `
+          <article class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3">
+            <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div class="min-w-0">
+                <p class="font-black text-sm text-slate-900 truncate">🏪 ${esc(r.stores?.name || 'Comercio')}</p>
+                <p class="text-[10px] font-mono text-slate-400 mt-0.5">#${esc(String(r.id).slice(0, 8).toUpperCase())}</p>
+                <span class="inline-block mt-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isPickupStep ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}">
+                  ${isPickupStep ? '📌 Por recoger' : '🚀 En ruta al cliente'}
+                </span>
+              </div>
+              <div class="text-right">
+                <p class="text-[10px] text-slate-500 font-bold uppercase">Tarifa</p>
+                <p class="font-black text-emerald-600 text-base">Q${fee}</p>
+              </div>
+            </div>
+
+            <div class="space-y-1.5 text-xs">
+              <p class="flex items-start gap-1.5"><span class="font-black text-slate-500">🏪</span><span class="font-semibold text-slate-700">${esc(r.origin_address || 'Tienda')}</span></p>
+              <p class="flex items-start gap-1.5"><span class="font-black text-slate-500">🎯</span><span class="font-semibold text-slate-700">${esc(r.destination_address || 'Cliente')}</span></p>
+              ${r.customer_name ? `<p class="flex items-start gap-1.5"><span>👤</span><span class="text-slate-700">${esc(r.customer_name)}</span></p>` : ''}
+            </div>
+
+            ${pinBox}
+
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" data-action="open-chat" data-id="${r.id}" data-store="${esc(r.stores?.name || 'Comercio')}"
+                class="bg-slate-800 hover:bg-slate-900 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow-sm">💬 Chat</button>
+              ${isPickupStep ? `
+                <button type="button" data-action="validate-pickup" data-id="${r.id}"
+                  class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow-sm">📌 Validar PIN Recolección</button>
+              ` : `
+                <button type="button" data-action="validate-delivery" data-id="${r.id}"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow-sm">🔑 Validar PIN Entrega</button>
+              `}
+            </div>
+
+            ${r.customer_phone ? `
+              <a href="https://wa.me/${String(r.customer_phone).replace(/\D/g,'')}" target="_blank"
+                class="block w-full text-center bg-[#25D366] hover:bg-[#128C7E] text-white font-extrabold py-2.5 rounded-xl text-xs transition shadow-sm">📱 WhatsApp Cliente</a>` : ''}
+
+            <button type="button" data-action="cancel-trip" data-id="${r.id}"
+              class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold py-2 rounded-xl text-xs transition border border-rose-200">
+              🚫 Cancelar Carrera
+            </button>
+          </article>`;
+      }).join('');
+
+      container.querySelectorAll('[data-action]').forEach(el => {
+        const action = el.dataset.action;
+        if (action === 'open-chat')         el.onclick = () => openChat(el.dataset.id, el.dataset.store);
+        if (action === 'validate-pickup')   el.onclick = () => openPinModal(el.dataset.id, 'pickup');
+        if (action === 'validate-delivery') el.onclick = () => openPinModal(el.dataset.id, 'delivery');
+        if (action === 'cancel-trip')       el.onclick = () => openCancelModal(el.dataset.id);
+      });
+    }
+
+    // =========================================================
+    // MÓDULO 3: HISTORIAL COMPLETO
+    // =========================================================
+    function getHistoryList() {
+      return allRequests.filter(r =>
+        r._isMine && ['delivered', 'completed', 'cancelled', 'cancelled_pending_review', 'rejected', 'revoked'].includes(r.status)
+      );
+    }
+
+    function computeHistoryStats(list) {
+      const delivered = list.filter(r => ['delivered', 'completed'].includes(r.status));
+      const cancelled = list.filter(r => ['cancelled', 'rejected'].includes(r.status));
+      const totalEarnings = delivered.reduce((sum, r) =>
+        sum + parseFloat(r.final_fee || r.counter_fee || r.suggested_fee || 0), 0);
+      const avg = delivered.length > 0 ? totalEarnings / delivered.length : 0;
+      const successRate = (delivered.length + cancelled.length) > 0
+        ? Math.round((delivered.length / (delivered.length + cancelled.length)) * 100)
+        : null;
+      return { total: delivered.length, earnings: totalEarnings, avg, successRate };
+    }
+
+    function applyHistoryFilters(list) {
+      let filtered = list;
+
+      if (historyStatusFilter !== 'all') {
+        if (historyStatusFilter === 'delivered') {
+          filtered = filtered.filter(r => ['delivered', 'completed'].includes(r.status));
+        } else if (historyStatusFilter === 'cancelled') {
+          filtered = filtered.filter(r => ['cancelled', 'rejected'].includes(r.status));
+        } else if (historyStatusFilter === 'audit') {
+          filtered = filtered.filter(r =>
+            r.status === 'cancelled_pending_review' ||
+            (r.admin_resolution && r.admin_resolution !== 'pending')
+          );
+        }
+      }
+
+      if (historyTimeFilter !== 'all') {
+        const now = Date.now();
+        const ranges = {
+          today: 24 * 3600 * 1000,
+          week: 7 * 24 * 3600 * 1000,
+          month: 30 * 24 * 3600 * 1000
+        };
+        const threshold = now - (ranges[historyTimeFilter] || 0);
+        filtered = filtered.filter(r => {
+          const iso = r.updated_at || r.created_at;
+          return iso && new Date(iso).getTime() >= threshold;
+        });
+      }
+
+      if (historySearchTerm) {
+        filtered = filtered.filter(r => {
+          const haystack = [
+            r.stores?.name,
+            r.customer_name,
+            r.origin_address,
+            r.destination_address,
+            r.cancellation_reason
+          ].filter(Boolean).join(' ').toLowerCase();
+          return haystack.includes(historySearchTerm);
+        });
+      }
+
+      return filtered;
+    }
+
+    // Estado de la resolución de auditoría en la tarjeta
+    function getResolutionInfo(r) {
+      const status = r.admin_resolution;
+      if (!status || status === 'pending') return null;
+
+      if (status === 'revoked') {
+        return {
+          label: '🔄 Sanción revocada',
+          cls: 'bg-slate-200 text-slate-800 border-slate-300',
+          detail: r.revoked_reason || 'La sanción previa fue revocada por el administrador.'
+        };
+      }
+
+      // ¿A quién afectaba la resolución?
+      // Si cancelled_by_role es 'driver' y hay sanción → en contra del piloto
+      // Si cancelled_by_role es 'seller' y hay sanción → en contra del vendedor
+      // Si no hay sanción → a favor del emisor
+      const emisorIsMe = r.cancelled_by_role === 'driver';
+
+      if (status === 'approved_no_sanction') {
+        return {
+          label: emisorIsMe ? '✅ Absuelto por auditoría' : '✅ Caso cerrado sin sanción',
+          cls: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+          detail: r.admin_resolution_notes || 'El administrador no encontró méritos para sancionar.'
+        };
+      }
+
+      if (status === 'warning_24h') {
+        return {
+          label: emisorIsMe ? '⚠️ Fuiste suspendido 24h' : '⚠️ Vendedor suspendido 24h',
+          cls: 'bg-amber-100 text-amber-900 border-amber-300',
+          detail: r.admin_resolution_notes || 'Sanción leve aplicada.'
+        };
+      }
+
+      if (status === 'suspension_7d') {
+        return {
+          label: emisorIsMe ? '🚨 Fuiste suspendido 7d' : '🚨 Vendedor suspendido 7d',
+          cls: 'bg-rose-100 text-rose-800 border-rose-300',
+          detail: r.admin_resolution_notes || 'Sanción grave aplicada.'
+        };
+      }
+
+      return null;
+    }
+
+    function renderHistorySection() {
+      const container = document.getElementById('historyList');
+      const fullList = getHistoryList();
+
+      // Stats siempre sobre el total (sin filtros)
+      const stats = computeHistoryStats(fullList);
+      document.getElementById('histStatTotal').textContent = stats.total;
+      document.getElementById('histStatEarnings').textContent = `Q${stats.earnings.toFixed(2)}`;
+      document.getElementById('histStatAvg').textContent = `Q${stats.avg.toFixed(2)}`;
+      document.getElementById('histStatRate').textContent =
+        stats.successRate === null ? '—' : `${stats.successRate}%`;
+
+      // Filtros aplicados
+      const filtered = applyHistoryFilters(fullList);
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="col-span-full bg-white rounded-2xl p-12 text-center border border-slate-200/80 shadow-sm">
+            <p class="text-4xl mb-2">📭</p>
+            <p class="text-sm font-bold text-slate-500">${fullList.length === 0 ? 'Aún no tienes carreras en tu historial' : 'Sin resultados para los filtros aplicados'}</p>
+            <p class="text-xs text-slate-400 mt-1">${fullList.length === 0 ? 'Completa tu primera entrega para verla aquí.' : 'Prueba ajustar los filtros o el rango de fecha.'}</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(r => {
+        const isDelivered = ['delivered', 'completed'].includes(r.status);
+        const isCancelled = ['cancelled', 'rejected'].includes(r.status);
+        const isAudit     = r.status === 'cancelled_pending_review';
+
+        let statusBadgeCls = 'bg-slate-100 text-slate-700 border-slate-200';
+        let statusLabel = r.status;
+        if (isDelivered) { statusBadgeCls = 'bg-emerald-100 text-emerald-800 border-emerald-200'; statusLabel = '🟢 Entregado'; }
+        else if (isAudit) { statusBadgeCls = 'bg-amber-100 text-amber-900 border-amber-300'; statusLabel = '⚠️ En auditoría'; }
+        else if (isCancelled) { statusBadgeCls = 'bg-rose-100 text-rose-800 border-rose-200'; statusLabel = '🔴 Cancelado'; }
+
+        const fee = parseFloat(r.final_fee || r.counter_fee || r.suggested_fee || 0).toFixed(2);
+
+        // Duración del viaje: desde created_at (o updated_at si nunca avanzó) hasta updated_at final
+        const startIso = r.created_at;
+        const endIso   = r.updated_at || r.created_at;
+        const durationSec = startIso && endIso
+          ? Math.max(0, Math.floor((new Date(endIso).getTime() - new Date(startIso).getTime()) / 1000))
+          : null;
+
+        const resolution = getResolutionInfo(r);
+
+        return `
+          <article class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3">
+            <div class="flex justify-between items-start border-b pb-3 gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-[10px] font-mono text-slate-400">#${esc(String(r.id).slice(0, 8).toUpperCase())}</span>
+                  ${!r.order_id ? `<span class="text-[9px] font-black bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full border border-indigo-200">🎯 DIRECTO</span>` : ''}
+                </div>
+                <p class="font-black text-sm text-slate-900 mt-0.5 truncate">🏪 ${esc(r.stores?.name || 'Comercio')}</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">${fmtDateTime(endIso)}</p>
+              </div>
+              <span class="text-[10px] font-black px-2 py-1 rounded-full uppercase border ${statusBadgeCls} flex-shrink-0">${statusLabel}</span>
+            </div>
+
+            <div class="space-y-1.5 text-xs">
+              <p class="flex items-start gap-1.5"><span class="text-slate-400">🏪</span><span class="text-slate-700">${esc(r.origin_address || 'Tienda')}</span></p>
+              <p class="flex items-start gap-1.5"><span class="text-slate-400">🎯</span><span class="text-slate-700">${esc(r.destination_address || 'Cliente')}</span></p>
+              ${r.customer_name ? `<p class="flex items-start gap-1.5"><span class="text-slate-400">👤</span><span class="text-slate-700">${esc(r.customer_name)}</span></p>` : ''}
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center">
+                <span class="text-[9px] font-black text-slate-500 uppercase block">⏱️ Duración</span>
+                <span class="text-xs font-black text-slate-800">${durationSec !== null ? fmtDuration(durationSec) : '—'}</span>
+              </div>
+              <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-2 text-center">
+                <span class="text-[9px] font-black text-emerald-700 uppercase block">💰 Tarifa</span>
+                <span class="text-xs font-black text-emerald-800">Q${fee}</span>
+              </div>
+            </div>
+
+            ${r.cancellation_reason ? `
+              <div class="bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-[11px]">
+                <span class="font-black text-rose-900 uppercase text-[9px] block mb-0.5">Motivo de cancelación</span>
+                <p class="italic text-rose-800">"${esc(r.cancellation_reason)}"</p>
+              </div>` : ''}
+
+            ${resolution ? `
+              <div class="rounded-xl p-3 border ${resolution.cls}">
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] font-black uppercase tracking-wider">Resolución de auditoría</span>
+                </div>
+                <p class="font-black text-xs mt-1">${resolution.label}</p>
+                ${resolution.detail ? `<p class="text-[11px] mt-1 opacity-90 leading-snug">${esc(resolution.detail)}</p>` : ''}
+              </div>` : ''}
+
+            ${isAudit && (!r.admin_resolution || r.admin_resolution === 'pending') ? `
+              <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] flex items-start gap-2">
+                <span>⏳</span>
+                <p class="text-amber-900 leading-snug">Tu cancelación está siendo revisada por el equipo de administración. Te notificaremos la resolución.</p>
+              </div>` : ''}
+          </article>`;
+      }).join('');
+    }
+
+    // =========================================================
+    // PIN
+    // =========================================================
+    function openPinModal(requestId, step) {
+      document.getElementById('pinValidateRequestId').value = requestId;
+      document.getElementById('pinValidateStep').value = step;
+      document.getElementById('pinValidateInput').value = '';
+
+      const titleEl = document.getElementById('pinValidateTitle');
+      const descEl  = document.getElementById('pinValidateDesc');
+
+      if (step === 'pickup') {
+        titleEl.textContent = '📌 Validar PIN de Recolección';
+        descEl.textContent  = 'Pídele al comercio el PIN de 4 dígitos y escríbelo aquí. Si coincide, la carrera pasa a "En ruta al cliente".';
+      } else {
+        titleEl.textContent = '🔑 Validar PIN de Entrega';
+        descEl.textContent  = 'Pídele al cliente el PIN de 4 dígitos al momento de entregar. Al validarlo, la carrera se marca como FINALIZADA.';
+      }
+
+      document.getElementById('pinValidateModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('pinValidateInput').focus(), 80);
+    }
+
+    function bindPinModal() {
+      document.getElementById('btnPinCancel').onclick = () => document.getElementById('pinValidateModal').classList.add('hidden');
+      document.getElementById('btnPinConfirm').onclick = async () => {
+        const reqId   = document.getElementById('pinValidateRequestId').value;
+        const step    = document.getElementById('pinValidateStep').value;
+        const entered = document.getElementById('pinValidateInput').value.trim();
+        const req     = allRequests.find(r => r.id === reqId);
+        if (!req) return;
+
+        const expected = step === 'pickup' ? req.pickup_pin : req.delivery_pin;
+        if (!expected || entered !== String(expected)) {
+          alert('❌ PIN incorrecto. Verifica con ' + (step === 'pickup' ? 'el comercio.' : 'el cliente.'));
+          document.getElementById('pinValidateInput').value = '';
+          document.getElementById('pinValidateInput').focus();
+          return;
+        }
+
+        const client = window._supabase || initSupabaseClient();
+        const nowIso = new Date().toISOString();
+        const newStatus = step === 'pickup' ? 'in_transit' : 'delivered';
+
+        const { error } = await client.from('delivery_requests')
+          .update({ status: newStatus, updated_at: nowIso }).eq('id', reqId);
+        if (error) { alert('Error: ' + error.message); return; }
+
+        if (step === 'delivery') {
+          if (req.order_id) {
+            await client.from('cart_orders').update({
+              status: 'completed', status_updated_at: nowIso
+            }).eq('id', req.order_id);
+          }
+          await client.from('delivery_drivers')
+            .update({ total_trips: (currentDriver.total_trips || 0) + 1 })
+            .eq('id', currentDriver.id);
+        }
+
+        document.getElementById('pinValidateModal').classList.add('hidden');
+        alert(step === 'pickup' ? '✅ PIN de recolección validado. ¡En ruta!' : '🎉 ¡Entrega confirmada!');
+
+        if (window.__pasajeRefreshDashBadges) window.__pasajeRefreshDashBadges();
+        await loadAllRequests();
+      };
+    }
+
+    // =========================================================
+    // Cancelación
+    // =========================================================
+    function openCancelModal(requestId) {
+      const req = allRequests.find(r => r.id === requestId);
+      if (!req) return;
+      document.getElementById('cancelRequestId').value = requestId;
+      document.getElementById('cancelStartedAt').value = req.updated_at || req.created_at || new Date().toISOString();
+      document.getElementById('cancelReasonSelect').value = 'No puedo llegar al punto de recolección';
+      document.getElementById('cancelNotesInput').value = '';
+      document.getElementById('cancelTripModal').classList.remove('hidden');
+    }
+
+    function bindCancelModal() {
+      document.getElementById('btnCancelModalClose').onclick = () => document.getElementById('cancelTripModal').classList.add('hidden');
+      document.getElementById('btnConfirmCancelTrip').onclick = async () => {
+        const reqId     = document.getElementById('cancelRequestId').value;
+        const startedAt = document.getElementById('cancelStartedAt').value;
+        const reason    = document.getElementById('cancelReasonSelect').value;
+        const notes     = document.getElementById('cancelNotesInput').value.trim();
+
+        if (!notes) { alert('Por favor ingresa una explicación.'); return; }
+
+        const startMs = startedAt ? new Date(startedAt).getTime() : Date.now();
+        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+
+        const client = window._supabase || initSupabaseClient();
+        const { error } = await client.from('delivery_requests').update({
+          status: 'cancelled_pending_review',
+          cancelled_at: new Date().toISOString(),
+          cancelled_by_role: 'driver',
+          cancelled_by_user_id: currentUser.id,
+          cancellation_reason: `${reason} — ${notes}`,
+          time_elapsed_seconds: elapsedSeconds,
+          updated_at: new Date().toISOString()
+        }).eq('id', reqId);
+
+        if (error) { alert('Error al cancelar: ' + error.message); return; }
+
+        await client.from('delivery_drivers')
+          .update({ total_cancellations: (currentDriver.total_cancellations || 0) + 1 })
+          .eq('id', currentDriver.id);
+
+        document.getElementById('cancelTripModal').classList.add('hidden');
+        alert('🚫 Carrera cancelada. Enviada a auditoría.');
+        if (window.__pasajeRefreshDashBadges) window.__pasajeRefreshDashBadges();
+        await loadAllRequests();
+      };
+    }
+
+    // =========================================================
+    // Chat
+    // =========================================================
+    function openChat(requestId, storeName) {
+      document.getElementById('chatRequestId').value = requestId;
+      document.getElementById('chatStoreName').textContent = storeName || 'Comercio';
+      document.getElementById('driverChatModal').classList.remove('hidden');
+      loadChatMessages(requestId);
+      subscribeChat(requestId);
+    }
+
+    function bindChat() {
+      document.getElementById('closeDriverChatBtn').onclick = () => {
+        document.getElementById('driverChatModal').classList.add('hidden');
+        if (chatChannel) { chatChannel.unsubscribe(); chatChannel = null; }
+      };
+
       document.getElementById('driverChatForm').onsubmit = async (e) => {
         e.preventDefault();
-        const input = document.getElementById('driverChatMessageInput');
-        const msg = input.value.trim();
-        if (!msg || !activeReq) return;
-
+        const input   = document.getElementById('driverChatMessageInput');
+        const msgText = input.value.trim();
+        const reqId   = document.getElementById('chatRequestId').value;
+        if (!msgText) return;
         input.value = '';
+
         const client = window._supabase || initSupabaseClient();
         await client.from('delivery_messages').insert([{
-          request_id: activeReq.id,
+          request_id: reqId,
           sender_id: currentUser.id,
           sender_role: 'driver',
-          sender_name: currentDriver.full_name || 'Piloto',
-          message: msg
+          sender_name: currentDriver?.full_name || 'Piloto',
+          message: msgText
         }]);
-        fetchDriverChat(activeReq.id);
+        loadChatMessages(reqId);
       };
     }
 
-    async function fetchDriverChat(reqId) {
-      const client = window._supabase || initSupabaseClient();
+    async function loadChatMessages(requestId) {
       const container = document.getElementById('driverChatMessages');
-      const { data } = await client.from('delivery_messages').select('*').eq('request_id', reqId).order('created_at', { ascending: true });
+      const client = window._supabase || initSupabaseClient();
+      const { data } = await client.from('delivery_messages')
+        .select('*').eq('request_id', requestId).order('created_at', { ascending: true });
 
-      container.innerHTML = (data || []).map(m => `
-        <div class="flex flex-col ${m.sender_role === 'driver' ? 'items-end' : 'items-start'}">
-          <div class="${m.sender_role === 'driver' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-800'} px-3 py-1.5 rounded-xl font-medium max-w-[80%]">
-            ${dashEscapeHtml(m.message)}
-          </div>
-        </div>
-      `).join('');
+      if (!data || data.length === 0) {
+        container.innerHTML = `<p class="text-center text-slate-400 py-4 font-medium">No hay mensajes aún.</p>`;
+        return;
+      }
+
+      container.innerHTML = data.map(m => {
+        const isMe = m.sender_role === 'driver';
+        return `
+          <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+            <span class="text-[9px] text-slate-400 font-bold mb-0.5">${esc(m.sender_name || (isMe ? 'Tú' : 'Comercio'))}</span>
+            <div class="${isMe ? 'bg-emerald-600 text-white' : 'bg-white text-slate-800 border border-slate-200'} px-3 py-1.5 rounded-2xl max-w-[80%] font-medium">
+              ${esc(m.message)}
+            </div>
+          </div>`;
+      }).join('');
+
       container.scrollTop = container.scrollHeight;
     }
 
-    function subscribeDriverChat(reqId) {
+    function subscribeChat(requestId) {
       const client = window._supabase || initSupabaseClient();
-      if (chatSub) client.removeChannel(chatSub);
-      chatSub = client.channel(`chat_driver_${reqId}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'delivery_messages', filter: `request_id=eq.${reqId}` }, () => fetchDriverChat(reqId))
+      if (chatChannel) chatChannel.unsubscribe();
+      chatChannel = client.channel(`chat_driver:${requestId}`)
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'delivery_messages', filter: `request_id=eq.${requestId}` },
+          () => loadChatMessages(requestId))
         .subscribe();
     }
 
-    function listenGlobal() {
-      const client = window._supabase || initSupabaseClient();
-      client.channel('driver_global_sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_requests' }, () => fetchAll())
-        .subscribe();
+    // =========================================================
+    // Realtime
+    // =========================================================
+    function subscribeRealtime() {
+      if (realtimeRequestsChannel) {
+        const c = window._supabase || initSupabaseClient();
+        try { c.removeChannel(realtimeRequestsChannel); } catch (e) {}
+      }
+      realtimeRequestsChannel = PasajeRealtime.subscribeToTable(
+        `driver_requests_feed_${currentDriver.id}`,
+        'delivery_requests',
+        null,
+        () => loadAllRequests()
+      );
+    }
+
+    function subscribeDriverSuspension() {
+      if (realtimeDriverChannel) {
+        const c = window._supabase || initSupabaseClient();
+        try { c.removeChannel(realtimeDriverChannel); } catch (e) {}
+      }
+
+      realtimeDriverChannel = PasajeRealtime.subscribeToTable(
+        `driver_self_status_${currentDriver.id}`,
+        'delivery_drivers',
+        `id=eq.${currentDriver.id}`,
+        async () => {
+          const client = window._supabase || initSupabaseClient();
+          const { data } = await client
+            .from('delivery_drivers').select('*').eq('id', currentDriver.id).maybeSingle();
+          if (data) {
+            currentDriver = data;
+            applySuspensionState();
+            updateOnlineBtn();
+            renderAvailable(allRequests.filter(r =>
+              r.status === 'pending' &&
+              (!r.assignment_type || r.assignment_type === 'broadcast') &&
+              (!r.target_driver_id || r.target_driver_id === currentDriver.id) &&
+              !(Array.isArray(r.rejected_driver_ids) && r.rejected_driver_ids.includes(currentDriver.id))
+            ));
+          }
+        }
+      );
     }
   </script>
 </body>
